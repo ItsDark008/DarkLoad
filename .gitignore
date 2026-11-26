@@ -9,7 +9,7 @@ coverage/
 *.tsbuildinfo
 
 # Release staging
-release/
+/release/
 
 # Logs and local state
 *.log
