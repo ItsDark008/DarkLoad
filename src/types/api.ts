@@ -340,6 +340,7 @@ export interface Settings {
   includeAutoSubtitles: boolean;
   theme: "oled" | "dark";
   accentColor: string;
+  oledBackground: string;
   sidebarCollapsed: boolean;
   sidebarBehavior: "remember" | "auto";
   density: "comfortable" | "compact";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { codecLabel, formatBytes, formatDuration, formatEta, formatPercent, formatRelative, formatSpeed } from "./format";
 import { dedupeUrls, detectPlatform, extractUrls, urlKey } from "./urls";
-import { contrastRatio, lighten, readableTextOn } from "./utils";
+import { contrastRatio, isValidOledBackground, lighten, oledPalette, readableTextOn } from "./utils";
 import { errorHint, isFinished, isRunning, optionsFromSettings } from "./options";
 import type { Settings } from "@/types/api";
 
@@ -101,6 +101,30 @@ describe("color utilities", () => {
     expect(contrastRatio("#A1A1AA", "#000000")).toBeGreaterThan(4.5);
     expect(readableTextOn("#8B5CF6")).toBe("#FFFFFF");
     expect(readableTextOn("#FDE047")).toBe("#000000");
+  });
+});
+
+describe("OLED palette", () => {
+  it("reproduces the default tokens from pure black", () => {
+    expect(oledPalette("#000000")).toEqual({
+      "--dl-bg": "#000000",
+      "--dl-sidebar": "#000000",
+      "--dl-card": "#080808",
+      "--dl-elevated": "#101010",
+      "--dl-hover": "#141414",
+      "--dl-border": "#1C1C1C",
+      "--dl-border-strong": "#2A2A2A",
+    });
+  });
+  it("derives tinted surfaces from a custom base", () => {
+    const p = oledPalette("#04060e");
+    expect(p["--dl-bg"]).toBe("#04060E");
+    expect(p["--dl-card"]).not.toBe("#080808");
+  });
+  it("only accepts very dark backgrounds that keep text readable", () => {
+    for (const ok of ["#000000", "#04060E", "#0A0510", "#030A06", "#0E0505", "#0C0C0E"]) expect(isValidOledBackground(ok)).toBe(true);
+    for (const bad of ["#3A3A3A", "#1E3A8A", "#FFFFFF", "black", "#12345"]) expect(isValidOledBackground(bad)).toBe(false);
+    expect(contrastRatio("#A1A1AA", "#262626")).toBeGreaterThan(4.5);
   });
 });
 

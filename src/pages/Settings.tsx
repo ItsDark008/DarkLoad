@@ -21,11 +21,11 @@ import { PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Badge, Card, Progress, Segmented, Switch } from "@/components/ui/controls";
+import { Badge, Card, Progress, Segmented, Switch, Tooltip } from "@/components/ui/controls";
 import { ConfirmDialog, Dialog, DialogContent } from "@/components/ui/overlays";
 import { formatBytes, formatDate } from "@/lib/format";
 import { AUDIO_BITRATES, AUDIO_FORMATS, CONTAINERS } from "@/lib/options";
-import { cn } from "@/lib/utils";
+import { cn, isValidOledBackground } from "@/lib/utils";
 import { api } from "@/services/api";
 import { useApp, type SettingsSection } from "@/stores/app";
 import { useHistorySignal } from "@/stores/signals";
@@ -203,6 +203,74 @@ function Downloads({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Pro
   );
 }
 
+const OLED_BACKGROUNDS = [
+  { value: "#000000", name: "Pure black" },
+  { value: "#04060E", name: "Midnight" },
+  { value: "#0A0510", name: "Plum" },
+  { value: "#030A06", name: "Forest" },
+  { value: "#0E0505", name: "Ember" },
+  { value: "#0C0C0E", name: "Graphite" },
+];
+
+function OledBackgroundPicker({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promise<boolean> }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? s.oledBackground;
+  const current = s.oledBackground.toUpperCase();
+  const invalid = draft != null && draft.length === 7 && !isValidOledBackground(draft);
+  const commit = () => {
+    if (draft == null) return;
+    setDraft(null);
+    const next = draft.toUpperCase();
+    if (next === current) return;
+    if (isValidOledBackground(next)) void set({ oledBackground: next });
+    else toast.error("Choose a darker color", { description: "The OLED background must stay very dark so text remains readable." });
+  };
+  return (
+    <div className="px-5 py-4">
+      <div className="text-[13px] font-medium">OLED background</div>
+      <div className="mt-0.5 text-xs text-fg-2">
+        The base color of the OLED theme. Cards, borders and menus are derived from it. Pure black turns pixels off on OLED displays.
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {OLED_BACKGROUNDS.map((option) => {
+          const selected = current === option.value;
+          return (
+            <Tooltip key={option.value} content={`${option.name} · ${option.value}`}>
+              <button
+                type="button"
+                aria-label={`${option.name} background`}
+                aria-pressed={selected}
+                onClick={() => void set({ oledBackground: option.value })}
+                className={cn(
+                  "size-8 rounded-lg border-2 transition-transform hover:scale-110",
+                  selected ? "border-accent-hover" : "border-line-strong",
+                )}
+                style={{ background: option.value }}
+              />
+            </Tooltip>
+          );
+        })}
+        <Input
+          aria-label="Custom OLED background color"
+          aria-invalid={invalid}
+          className="ml-2 w-28 font-mono uppercase"
+          value={value}
+          maxLength={7}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === "Enter" && commit()}
+        />
+        {current !== "#000000" ? (
+          <Button size="sm" variant="ghost" onClick={() => void set({ oledBackground: "#000000" })}>
+            Reset
+          </Button>
+        ) : null}
+      </div>
+      {invalid ? <p className="mt-2 text-xs text-danger">This color is too bright for the OLED theme.</p> : null}
+    </div>
+  );
+}
+
 const ACCENTS = ["#8B5CF6", "#6366F1", "#3B82F6", "#06B6D4", "#10B981", "#EAB308", "#F97316", "#EC4899"];
 
 function Appearance({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promise<boolean> }) {
@@ -211,9 +279,10 @@ function Appearance({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Pr
   return (
     <>
       <Group title="Theme">
-        <Row label="Theme" description="OLED uses pure black surfaces to save power on OLED displays.">
+        <Row label="Theme" description="OLED uses true-black surfaces that save power on OLED displays.">
           <Segmented aria-label="Theme" size="sm" value={s.theme} onValueChange={(theme) => void set({ theme })} options={[{ value: "oled", label: "OLED black" }, { value: "dark", label: "Dark" }]} />
         </Row>
+        {s.theme === "oled" ? <OledBackgroundPicker s={s} set={set} /> : null}
         <div className="px-5 py-4">
           <div className="text-[13px] font-medium">Accent color</div>
           <div className="mt-3 flex flex-wrap items-center gap-2">

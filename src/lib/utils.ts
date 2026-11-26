@@ -49,5 +49,31 @@ export function readableTextOn(hex: string): "#000000" | "#FFFFFF" {
   return contrastRatio(hex, "#FFFFFF") >= 4 ? "#FFFFFF" : "#000000";
 }
 
+/** Lightening steps that turn the base color into the layered OLED surfaces. */
+const SURFACE_STEPS = { card: 0.031, elevated: 0.063, hover: 0.078, border: 0.11, borderStrong: 0.165 } as const;
+
+export const MAX_OLED_BACKGROUND_LUMINANCE = 0.02;
+
+/**
+ * Derives every OLED surface token from one base color. With pure black this reproduces the
+ * default palette exactly (#080808 cards, #101010 elevated surfaces, #1C1C1C borders).
+ */
+export function oledPalette(base: string): Record<string, string> {
+  return {
+    "--dl-bg": base.toUpperCase(),
+    "--dl-sidebar": base.toUpperCase(),
+    "--dl-card": lighten(base, SURFACE_STEPS.card),
+    "--dl-elevated": lighten(base, SURFACE_STEPS.elevated),
+    "--dl-hover": lighten(base, SURFACE_STEPS.hover),
+    "--dl-border": lighten(base, SURFACE_STEPS.border),
+    "--dl-border-strong": lighten(base, SURFACE_STEPS.borderStrong),
+  };
+}
+
+/** Whether a color is dark enough to be an OLED background (mirrors the backend rule). */
+export function isValidOledBackground(hex: string): boolean {
+  return /^#[0-9a-f]{6}$/i.test(hex) && luminance(hex) <= MAX_OLED_BACKGROUND_LUMINANCE;
+}
+
 export const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 export const modKey = isMac ? "⌘" : "Ctrl";

@@ -7,7 +7,7 @@ import { api, events } from "@/services/api";
 import { PAGE_ORDER, useApp } from "@/stores/app";
 import { useHistorySignal } from "@/stores/signals";
 import { useQueue } from "@/stores/queue";
-import { lighten, readableTextOn } from "@/lib/utils";
+import { lighten, oledPalette, readableTextOn } from "@/lib/utils";
 import { urlKey } from "@/lib/urls";
 import type { DependencyStatus, InstallProgress, Job, Settings } from "@/types/api";
 
@@ -44,6 +44,11 @@ export function useAppearance(settings: Settings | null) {
     root.style.setProperty("--dl-accent", settings.accentColor);
     root.style.setProperty("--dl-accent-hover", lighten(settings.accentColor, 0.28));
     root.style.setProperty("--dl-accent-fg", readableTextOn(settings.accentColor));
+    // The OLED theme's surfaces follow the chosen base color; the Dark theme keeps its own.
+    for (const [name, value] of Object.entries(oledPalette(settings.oledBackground))) {
+      if (settings.theme === "oled") root.style.setProperty(name, value);
+      else root.style.removeProperty(name);
+    }
   }, [settings]);
 
   const native = settings?.nativeWindowFrame;

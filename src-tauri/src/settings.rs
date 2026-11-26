@@ -104,6 +104,8 @@ pub struct Settings {
     // Appearance
     pub theme: Theme,
     pub accent_color: String,
+    /// Base surface color of the OLED theme. Must stay very dark so text keeps its contrast.
+    pub oled_background: String,
     pub sidebar_collapsed: bool,
     pub sidebar_behavior: SidebarBehavior,
     pub density: Density,
@@ -158,6 +160,7 @@ impl Default for Settings {
             include_auto_subtitles: false,
             theme: Theme::Oled,
             accent_color: "#8B5CF6".to_string(),
+            oled_background: "#000000".to_string(),
             sidebar_collapsed: false,
             sidebar_behavior: SidebarBehavior::Remember,
             density: Density::Comfortable,
@@ -169,6 +172,26 @@ impl Default for Settings {
             prefer_ipv4: true,
         }
     }
+}
+
+/// Maximum relative luminance allowed for the OLED background. Keeps white text above 15:1
+/// contrast and secondary text above AA, and keeps the theme close to true black.
+pub const MAX_OLED_BACKGROUND_LUMINANCE: f64 = 0.02;
+
+/// WCAG relative luminance of a `#RRGGBB` color, or `None` when it is not a valid hex color.
+pub fn relative_luminance(value: &str) -> Option<f64> {
+    if !is_hex_color(value) {
+        return None;
+    }
+    let channel = |i: usize| -> f64 {
+        let c = f64::from(u8::from_str_radix(&value[i..i + 2], 16).unwrap_or(0)) / 255.0;
+        if c <= 0.03928 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    Some(0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5))
 }
 
 pub fn is_hex_color(value: &str) -> bool {
@@ -226,6 +249,19 @@ impl Settings {
                 "The accent color must be a hex color such as #8B5CF6.",
             ));
         }
+        match relative_luminance(&self.oled_background) {
+            None => {
+                return Err(AppError::invalid_input(
+                    "The OLED background must be a hex color such as #000000.",
+                ))
+            }
+            Some(l) if l > MAX_OLED_BACKGROUND_LUMINANCE => {
+                return Err(AppError::invalid_input(
+                    "The OLED background is too bright. Choose a very dark color so text stays readable.",
+                ))
+            }
+            _ => {}
+        }
         if self.subtitle_languages.len() > 20
             || !self.subtitle_languages.iter().all(|l| is_language_code(l))
         {
@@ -249,6 +285,27 @@ mod tests {
     #[test]
     fn defaults_are_valid() {
         Settings::default().validate().unwrap();
+    }
+
+    #[test]
+    fn oled_background_must_stay_dark() {
+        assert_eq!(relative_luminance("#000000"), Some(0.0));
+        assert!(relative_luminance("#FFFFFF").unwrap() > 0.99);
+        assert_eq!(relative_luminance("#12345"), None);
+        for ok in ["#000000", "#05060A", "#0B0612", "#101418"] {
+            let s = Settings {
+                oled_background: ok.into(),
+                ..Settings::default()
+            };
+            assert!(s.validate().is_ok(), "{ok} should be accepted");
+        }
+        for too_bright in ["#3A3A3A", "#1E3A8A", "#FFFFFF"] {
+            let s = Settings {
+                oled_background: too_bright.into(),
+                ..Settings::default()
+            };
+            assert!(s.validate().is_err(), "{too_bright} should be rejected");
+        }
     }
 
     #[test]
@@ -294,6 +351,8 @@ mod tests {
             Box::new(|s| s.default_audio_bitrate = Some(1000)),
             Box::new(|s| s.filename_template = "../x.%(ext)s".into()),
             Box::new(|s| s.accent_color = "purple".into()),
+            Box::new(|s| s.oled_background = "black".into()),
+            Box::new(|s| s.oled_background = "#808080".into()),
             Box::new(|s| s.subtitle_languages = vec!["en;rm".into()]),
             Box::new(|s| s.concurrent_fragments = 0),
         ];
