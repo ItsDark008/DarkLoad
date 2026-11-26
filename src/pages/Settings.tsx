@@ -223,11 +223,11 @@ function OledBackgroundPicker({ s, set }: { s: Settings; set: (p: Partial<Settin
     const next = draft.toUpperCase();
     if (next === current) return;
     if (isValidOledBackground(next)) void set({ oledBackground: next });
-    else toast.error("Choose a darker color", { description: "The OLED background must stay very dark so text remains readable." });
+    else toast.error("Choose a darker color", { description: "The background must stay very dark so text remains readable." });
   };
   return (
     <div className="px-5 py-4">
-      <div className="text-[13px] font-medium">OLED background</div>
+      <div className="text-[13px] font-medium">Background</div>
       <div className="mt-0.5 text-xs text-fg-2">
         The base color of the OLED theme. Cards, borders and menus are derived from it. Pure black turns pixels off on OLED displays.
       </div>
@@ -251,7 +251,7 @@ function OledBackgroundPicker({ s, set }: { s: Settings; set: (p: Partial<Settin
           );
         })}
         <Input
-          aria-label="Custom OLED background color"
+          aria-label="Custom background color"
           aria-invalid={invalid}
           className="ml-2 w-28 font-mono uppercase"
           value={value}

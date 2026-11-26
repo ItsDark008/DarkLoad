@@ -252,14 +252,12 @@ impl Settings {
         match relative_luminance(&self.oled_background) {
             None => {
                 return Err(AppError::invalid_input(
-                    "The OLED background must be a hex color such as #000000.",
+                    "The background must be a hex color such as #000000.",
                 ))
             }
-            Some(l) if l > MAX_OLED_BACKGROUND_LUMINANCE => {
-                return Err(AppError::invalid_input(
-                    "The OLED background is too bright. Choose a very dark color so text stays readable.",
-                ))
-            }
+            Some(l) if l > MAX_OLED_BACKGROUND_LUMINANCE => return Err(AppError::invalid_input(
+                "The background is too bright. Choose a very dark color so text stays readable.",
+            )),
             _ => {}
         }
         if self.subtitle_languages.len() > 20
