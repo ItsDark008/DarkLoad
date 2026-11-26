@@ -2,6 +2,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Analysis,
+  AccountStatus,
   AppError,
   AppInfo,
   DeleteResult,
@@ -14,6 +15,7 @@ import type {
   HistoryPage,
   HistoryQuery,
   HistoryStats,
+  Platform,
   Job,
   SelectionPlan,
   Settings,
@@ -92,6 +94,10 @@ export const api = {
   clearTemporaryFiles: () => call<number>("clear_temporary_files"),
   validateDirectory: (path: string) => call<string>("validate_directory", { path }),
   hasActiveDownloads: () => call<boolean>("has_active_downloads"),
+
+  accountsStatus: () => call<AccountStatus[]>("accounts_status"),
+  accountsConnect: (platform: Platform) => call<void>("accounts_connect", { platform }),
+  accountsDisconnect: (platform: Platform) => call<void>("accounts_disconnect", { platform }),
 };
 
 export const events = {
@@ -102,4 +108,5 @@ export const events = {
   settingsChanged: "settings://changed",
   updaterProgress: "updater://progress",
   historyChanged: "history://changed",
+  accountsChanged: "accounts://changed",
 } as const;

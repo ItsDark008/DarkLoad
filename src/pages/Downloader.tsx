@@ -7,6 +7,8 @@ import { EmptyState, InlineAlert, PageHeader } from "@/components/common";
 import { FormatDetails, MediaCard, PlanSummary, PlaylistPicker } from "@/components/media";
 import { UrlField } from "@/components/UrlField";
 import { readClipboardUrl } from "@/lib/clipboard";
+import { detectPlatform, PLATFORM_NAMES } from "@/lib/urls";
+import { supportsAccount, useAccounts } from "@/hooks/useAccounts";
 import { Button } from "@/components/ui/button";
 import { Card, Kbd, SectionTitle, Skeleton } from "@/components/ui/controls";
 import { ConfirmDialog } from "@/components/ui/overlays";
@@ -17,7 +19,7 @@ import { modKey } from "@/lib/utils";
 import { api } from "@/services/api";
 import { missingRequiredDeps, useApp } from "@/stores/app";
 import { useDownloader } from "@/stores/downloader";
-import type { DownloadOptions, DownloadRequest, HistoryEntry, MediaInfo } from "@/types/api";
+import type { DownloadOptions, DownloadRequest, HistoryEntry, MediaInfo, Platform } from "@/types/api";
 
 export function OutputFolder({ value, onChange }: { value: string; onChange: (dir: string) => void }) {
   const choose = async () => {
@@ -68,6 +70,7 @@ export function DownloaderPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [duplicate, setDuplicate] = useState<HistoryEntry | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { connect: connectAccount } = useAccounts();
 
   useEffect(() => {
     if (!options && settings) setOptions(optionsFromSettings(settings));
@@ -262,9 +265,16 @@ export function DownloaderPage() {
               tone="danger"
               title={error.message}
               action={
-                <Button size="sm" variant="secondary" onClick={() => void analyze()}>
-                  Try again
-                </Button>
+                <div className="flex gap-2">
+                  {error.code === "login_required" && supportsAccount(detectPlatform(url)) ? (
+                    <Button size="sm" variant="primary" onClick={() => connectAccount(detectPlatform(url) as Platform)}>
+                      Connect {PLATFORM_NAMES[detectPlatform(url) as Platform]}
+                    </Button>
+                  ) : null}
+                  <Button size="sm" variant="secondary" onClick={() => void analyze()}>
+                    Try again
+                  </Button>
+                </div>
               }
             >
               {errorHint(error.code) ?? (error.detail ? <span className="font-mono text-xs break-all">{error.detail}</span> : null)}

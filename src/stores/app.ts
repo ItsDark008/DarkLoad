@@ -7,7 +7,7 @@ export type Page = "overview" | "downloader" | "batch" | "queue" | "history" | "
 
 export const PAGE_ORDER: Page[] = ["overview", "downloader", "batch", "queue", "history", "settings", "about"];
 
-export type SettingsSection = "general" | "downloads" | "appearance" | "dependencies" | "updates" | "privacy";
+export type SettingsSection = "general" | "downloads" | "appearance" | "accounts" | "dependencies" | "updates" | "privacy";
 
 interface AppStore {
   page: Page;

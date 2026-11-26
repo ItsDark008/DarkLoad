@@ -136,7 +136,9 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
                   id={ids.resolution}
                   value={String(options.targetHeight ?? 1080)}
                   onValueChange={(v) => onChange({ targetHeight: Number(v) })}
-                  options={[4320, 2160, 1440, 1080, 720, 480, 360].map((h) => ({ value: String(h), label: `${h}p` }))}
+                  options={[...new Set([4320, 2160, 1440, 1080, 720, 480, 360, ...(options.targetHeight ? [options.targetHeight] : [])])]
+                    .sort((a, b) => b - a)
+                    .map((h) => ({ value: String(h), label: `${h}p` }))}
                 />
               </Field>
             )

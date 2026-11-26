@@ -20,7 +20,7 @@ use crate::queue::{AnalysisCache, DownloadRequest, Job, QueueManager};
 use crate::settings::Settings;
 use crate::storage::{HistoryEntry, HistoryPage, HistoryQuery, HistoryStats, Storage};
 use crate::updater::{self, UpdateInfo};
-use crate::{security, thumbnails};
+use crate::{accounts, security, thumbnails};
 
 pub struct AppPaths {
     pub data_dir: PathBuf,
@@ -114,6 +114,7 @@ pub fn detect_url(url: String) -> Cmd<DetectedUrl> {
 
 #[tauri::command]
 pub async fn analyze_url(
+    app: AppHandle,
     state: State<'_, AppState>,
     url: String,
     request_id: String,
@@ -133,7 +134,26 @@ pub async fn analyze_url(
         .unwrap_or_else(|e| e.into_inner())
         .insert(request_id.clone(), token.clone());
     let net = extractor::NetOptions::from(&state.settings());
-    let result = extractor::analyze(&tools, &detected, net, &token).await;
+    // Use the connected account's session, if any, in a temporary file for this analysis only.
+    let session_dir = state
+        .paths
+        .cache_dir
+        .join("sessions")
+        .join(uuid::Uuid::new_v4().simple().to_string());
+    let cookie_file = match accounts::export(&app, detected.platform).await {
+        Some(text) => Some(accounts::write_cookie_file(&session_dir, &text)?),
+        None => None,
+    };
+    let result = extractor::analyze(&tools, &detected, net, cookie_file.as_deref(), &token).await;
+    let _ = std::fs::remove_dir_all(&session_dir);
+    let result = match result {
+        Err(e) if e.code == ErrorCode::LoginRequired && cookie_file.is_none() => {
+            Err(accounts::login_hint(detected.platform)
+                .map(|hint| hint.with_detail(e.detail.clone().unwrap_or_default()))
+                .unwrap_or(e))
+        }
+        other => other,
+    };
     state
         .analyses
         .lock()
@@ -608,4 +628,29 @@ pub fn has_active_downloads(state: State<'_, AppState>) -> bool {
 
 fn path_string(p: PathBuf) -> String {
     p.to_string_lossy().into_owned()
+}
+
+// ----- Accounts -------------------------------------------------------------------------------
+
+fn account_platform(platform: &str) -> Cmd<platform::Platform> {
+    platform::Platform::parse(platform)
+        .filter(|p| accounts::supports(*p))
+        .ok_or_else(|| {
+            AppError::invalid_input("Accounts can be connected for TikTok and Instagram.")
+        })
+}
+
+#[tauri::command]
+pub async fn accounts_status(app: AppHandle) -> Cmd<Vec<accounts::AccountStatus>> {
+    Ok(accounts::status(&app).await)
+}
+
+#[tauri::command]
+pub async fn accounts_connect(app: AppHandle, platform: String) -> Cmd<()> {
+    accounts::connect(&app, account_platform(&platform)?).await
+}
+
+#[tauri::command]
+pub async fn accounts_disconnect(app: AppHandle, platform: String) -> Cmd<()> {
+    accounts::disconnect(&app, account_platform(&platform)?).await
 }

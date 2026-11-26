@@ -1,5 +1,6 @@
 //! DarkLoad desktop backend.
 
+pub mod accounts;
 pub mod commands;
 pub mod converter;
 pub mod dependencies;
@@ -28,6 +29,21 @@ use dependencies::DependencyManager;
 use queue::{AnalysisCache, QueueManager, QueuePaths};
 use settings::Settings;
 use storage::Storage;
+
+/// Bridges connected platform accounts into the download queue.
+struct AccountCookies {
+    app: AppHandle,
+}
+
+impl queue::CookieProvider for AccountCookies {
+    fn cookies_for(
+        &self,
+        platform: platform::Platform,
+    ) -> futures_util::future::BoxFuture<'static, Option<String>> {
+        let app = self.app.clone();
+        Box::pin(async move { accounts::export(&app, platform).await })
+    }
+}
 
 /// The default download folder: `<Downloads>/DarkLoad`, created on demand.
 pub fn default_download_dir(app: &AppHandle) -> String {
@@ -141,6 +157,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             app: handle.clone(),
         }),
     );
+    queue.set_cookie_provider(Arc::new(AccountCookies {
+        app: handle.clone(),
+    }));
 
     app.manage(AppState {
         storage,
@@ -220,6 +239,9 @@ pub fn run() {
             commands::clear_temporary_files,
             commands::validate_directory,
             commands::has_active_downloads,
+            commands::accounts_status,
+            commands::accounts_connect,
+            commands::accounts_disconnect,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DarkLoad");

@@ -67,6 +67,9 @@
     "allow-deps-diagnostics",
     "allow-clear-temporary-files",
     "allow-validate-directory",
-    "allow-has-active-downloads"
+    "allow-has-active-downloads",
+    "allow-accounts-status",
+    "allow-accounts-connect",
+    "allow-accounts-disconnect"
   ]
 }

@@ -140,6 +140,7 @@ pub async fn analyze(
     tools: &ToolPaths,
     detected: &DetectedUrl,
     net: NetOptions,
+    cookies: Option<&Path>,
     cancel: &CancellationToken,
 ) -> AppResult<Analysis> {
     let socket_timeout = net.socket_timeout;
@@ -153,6 +154,10 @@ pub async fn analyze(
         args.push("--flat-playlist".into());
     } else {
         args.push("--no-playlist".into());
+    }
+    if let Some(file) = cookies {
+        args.push("--cookies".into());
+        args.push(file.as_os_str().to_owned());
     }
     args.push("--".into());
     args.push(detected.url.clone().into());

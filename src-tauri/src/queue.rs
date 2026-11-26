@@ -162,6 +162,14 @@ pub struct Job {
 }
 
 /// Delivers queue updates to the interface.
+/// Supplies a platform session (Netscape cookie file contents) for connected accounts.
+pub trait CookieProvider: Send + Sync + 'static {
+    fn cookies_for(
+        &self,
+        platform: Platform,
+    ) -> futures_util::future::BoxFuture<'static, Option<String>>;
+}
+
 pub trait EventSink: Send + Sync + 'static {
     fn job_updated(&self, job: &Job);
     fn queue_changed(&self, jobs: &[Job]);
@@ -231,6 +239,7 @@ pub struct QueueManager {
     paths: QueuePaths,
     sink: Arc<dyn EventSink>,
     shutdown: CancellationToken,
+    cookies: RwLock<Option<Arc<dyn CookieProvider>>>,
 }
 
 fn now_ms() -> i64 {
@@ -263,6 +272,7 @@ impl QueueManager {
             paths,
             sink,
             shutdown: CancellationToken::new(),
+            cookies: RwLock::new(None),
         })
     }
 
@@ -614,7 +624,52 @@ impl QueueManager {
         }
     }
 
+    /// Connects a source of account sessions (set once the desktop runtime is available).
+    pub fn set_cookie_provider(&self, provider: Arc<dyn CookieProvider>) {
+        *self.cookies.write().unwrap_or_else(|e| e.into_inner()) = Some(provider);
+    }
+
     async fn execute(&self, id: &str, token: &CancellationToken) -> AppResult<Outcome> {
+        let platform = self
+            .lock()
+            .jobs
+            .iter()
+            .find(|j| j.id == id)
+            .map(|j| j.platform);
+        let provider = self
+            .cookies
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let session = match (provider, platform) {
+            (Some(p), Some(platform)) => p.cookies_for(platform).await,
+            _ => None,
+        };
+        let work_dir = self.paths.jobs_dir.join(id);
+        let cookie_file = match session {
+            Some(text) => Some(crate::accounts::write_cookie_file(&work_dir, &text)?),
+            None => None,
+        };
+        let result = self.execute_inner(id, token, cookie_file.as_deref()).await;
+        // The session file lives only for the duration of the operation.
+        if let Some(file) = &cookie_file {
+            let _ = std::fs::remove_file(file);
+        }
+        match result {
+            Err(e) if e.code == ErrorCode::LoginRequired && cookie_file.is_none() => Err(platform
+                .and_then(crate::accounts::login_hint)
+                .map(|hint| hint.with_detail(e.detail.clone().unwrap_or_default()))
+                .unwrap_or(e)),
+            other => other,
+        }
+    }
+
+    async fn execute_inner(
+        &self,
+        id: &str,
+        token: &CancellationToken,
+        cookie_file: Option<&Path>,
+    ) -> AppResult<Outcome> {
         let job = self
             .lock()
             .jobs
@@ -631,7 +686,8 @@ impl QueueManager {
             None => {
                 let detected = platform::detect(&job.request.url)?;
                 let analysis =
-                    extractor::analyze(&tools, &detected, (&settings).into(), token).await?;
+                    extractor::analyze(&tools, &detected, (&settings).into(), cookie_file, token)
+                        .await?;
                 let media = match analysis {
                     Analysis::Media(m) => *m,
                     Analysis::Playlist(p) => match job.request.playlist_item {
@@ -706,6 +762,7 @@ impl QueueManager {
                 settings: &settings,
                 work_dir: &work_dir,
                 ffmpeg_progress_file: Some(&progress_file),
+                cookies_file: cookie_file,
             };
             let args: Vec<OsString> = download::build_args(&tools, &spec);
             self.update(id, true, |job| {
@@ -1173,6 +1230,7 @@ fn check_disk_space(plan: &SelectionPlan, work_dir: &Path, output_dir: &Path) ->
 
 fn is_temporary(name: &str) -> bool {
     name == PROGRESS_FILE
+        || name == crate::accounts::COOKIE_FILE
         || name.ends_with(".part")
         || name.ends_with(".ytdl")
         || name.contains(".part-Frag")

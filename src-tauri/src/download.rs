@@ -27,6 +27,8 @@ pub struct DownloadSpec<'a> {
     pub settings: &'a Settings,
     pub work_dir: &'a Path,
     pub ffmpeg_progress_file: Option<&'a Path>,
+    /// Netscape cookie file for a connected account, deleted after the download.
+    pub cookies_file: Option<&'a Path>,
 }
 
 /// Quotes a value for yt-dlp's shlex-based `--postprocessor-args` parser.
@@ -154,6 +156,11 @@ pub fn build_args(tools: &ToolPaths, spec: &DownloadSpec<'_>) -> Vec<OsString> {
     }
     if o.write_thumbnail {
         args.push("--write-thumbnail".into());
+    }
+
+    if let Some(file) = spec.cookies_file {
+        args.push("--cookies".into());
+        args.push(file.as_os_str().to_owned());
     }
 
     if let Some(progress_file) = spec.ffmpeg_progress_file {
@@ -406,6 +413,7 @@ mod tests {
             settings,
             work_dir: Path::new("/work"),
             ffmpeg_progress_file: Some(Path::new("/work/ffmpeg-progress.txt")),
+            cookies_file: None,
         };
         build_args(&tools(), &spec)
             .into_iter()
