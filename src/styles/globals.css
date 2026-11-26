@@ -1,0 +1,195 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/* ---------------------------------------------------------------------------------------------
+   Design tokens. Every color in the interface resolves to one of these variables so themes and
+   the accent color can change at runtime.
+   --------------------------------------------------------------------------------------------- */
+:root,
+.theme-oled {
+  --dl-bg: #000000;
+  --dl-sidebar: #000000;
+  --dl-card: #080808;
+  --dl-elevated: #101010;
+  --dl-hover: #141414;
+  --dl-border: #1c1c1c;
+  --dl-border-strong: #2a2a2a;
+  --dl-fg: #ffffff;
+  --dl-fg-2: #a1a1aa;
+  --dl-muted: #52525b;
+  --dl-accent: #8b5cf6;
+  --dl-accent-hover: #a78bfa;
+  --dl-accent-fg: #ffffff;
+  --dl-success: #22c55e;
+  --dl-warning: #f59e0b;
+  --dl-error: #ef4444;
+  --dl-radius: 10px;
+  color-scheme: dark;
+}
+
+.theme-dark {
+  --dl-bg: #0b0b0d;
+  --dl-sidebar: #08080a;
+  --dl-card: #111114;
+  --dl-elevated: #18181c;
+  --dl-hover: #1d1d22;
+  --dl-border: #26262c;
+  --dl-border-strong: #34343b;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --color-bg: var(--dl-bg);
+  --color-sidebar: var(--dl-sidebar);
+  --color-card: var(--dl-card);
+  --color-elevated: var(--dl-elevated);
+  --color-hover: var(--dl-hover);
+  --color-line: var(--dl-border);
+  --color-line-strong: var(--dl-border-strong);
+  --color-fg: var(--dl-fg);
+  --color-fg-2: var(--dl-fg-2);
+  --color-muted: var(--dl-muted);
+  --color-accent: var(--dl-accent);
+  --color-accent-hover: var(--dl-accent-hover);
+  --color-accent-fg: var(--dl-accent-fg);
+  --color-success: var(--dl-success);
+  --color-warning: var(--dl-warning);
+  --color-danger: var(--dl-error);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: var(--dl-radius);
+  --radius-xl: 14px;
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-scale-in: scale-in 160ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html.density-compact {
+    font-size: 13px;
+  }
+
+  body {
+    background: var(--dl-bg);
+    color: var(--dl-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01", "ss03";
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  [data-selectable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--dl-accent) 45%, transparent);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--dl-accent-hover);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dl-border-strong) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--dl-border-strong);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+/* Reduced motion: honored from the OS setting and from Settings → Appearance. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.no-motion *,
+html.no-motion *::before,
+html.no-motion *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--dl-elevated) 25%, var(--dl-hover) 37%, var(--dl-elevated) 63%);
+  background-size: 400% 100%;
+  animation: var(--animate-shimmer);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
