@@ -1037,10 +1037,23 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
         } else {
             opts.container
         };
+    // The reported container of an already bundled stream can carry both tracks, even
+    // when the extractor lacks enough codec metadata to derive a container.
+    let source_container =
+        if audio.is_none() && (vc == Some(VideoCodec::Other) || ac == Some(AudioCodec::Other)) {
+            match video.ext.as_str() {
+                "mp4" => Some(Container::Mp4),
+                "mkv" => Some(Container::Mkv),
+                "webm" => Some(Container::Webm),
+                _ => None,
+            }
+        } else {
+            None
+        };
     let mut conflict = None;
     let output_container = match requested {
-        Container::Auto => native_container(vc, ac),
-        c if container_supports(c, vc, ac) => c,
+        Container::Auto => source_container.unwrap_or_else(|| native_container(vc, ac)),
+        c if source_container == Some(c) || container_supports(c, vc, ac) => c,
         c => {
             let suggested = Container::Mkv;
             let reason = format!(

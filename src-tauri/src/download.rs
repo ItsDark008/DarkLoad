@@ -27,8 +27,10 @@ pub struct DownloadSpec<'a> {
     pub settings: &'a Settings,
     pub work_dir: &'a Path,
     pub ffmpeg_progress_file: Option<&'a Path>,
-    /// Netscape cookie file for a connected account, deleted after the download.
+    /// Temporary Netscape cookie file for this operation.
     pub cookies_file: Option<&'a Path>,
+    /// Sanitized media information resolved by the public TikTok player.
+    pub info_file: Option<&'a Path>,
 }
 
 /// Quotes a value for yt-dlp's shlex-based `--postprocessor-args` parser.
@@ -170,8 +172,13 @@ pub fn build_args(tools: &ToolPaths, spec: &DownloadSpec<'_>) -> Vec<OsString> {
         }
     }
 
-    args.push("--".into());
-    args.push(spec.url.into());
+    if let Some(file) = spec.info_file {
+        args.push("--load-info-json".into());
+        args.push(file.as_os_str().to_owned());
+    } else {
+        args.push("--".into());
+        args.push(spec.url.into());
+    }
     args
 }
 
@@ -414,6 +421,7 @@ mod tests {
             work_dir: Path::new("/work"),
             ffmpeg_progress_file: Some(Path::new("/work/ffmpeg-progress.txt")),
             cookies_file: None,
+            info_file: None,
         };
         build_args(&tools(), &spec)
             .into_iter()

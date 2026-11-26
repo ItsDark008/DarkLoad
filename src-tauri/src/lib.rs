@@ -16,6 +16,7 @@ pub mod security;
 pub mod settings;
 pub mod storage;
 pub mod thumbnails;
+mod tiktok;
 pub mod updater;
 
 use std::collections::HashMap;
@@ -160,6 +161,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     queue.set_cookie_provider(Arc::new(AccountCookies {
         app: handle.clone(),
     }));
+    let tiktok_guest = Arc::new(tiktok::GuestPlayer::new(handle.clone())?);
+    queue.set_guest_player(tiktok_guest.clone());
 
     app.manage(AppState {
         storage,
@@ -170,7 +173,23 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         paths,
         analyses: Mutex::new(HashMap::new()),
         thumbnail_slots: Semaphore::new(6),
+        tiktok_guest,
     });
+
+    let main_window = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")
+        .ok_or_else(|| {
+            errors::AppError::internal("The main window is missing from the configuration.")
+        })?;
+    // Apply prototype hardening before local app scripts run. External player and sign-in
+    // pages run in separate webviews and need the browser's normal JavaScript behavior.
+    tauri::WebviewWindowBuilder::from_config(&handle, main_window)?
+        .initialization_script("Object.freeze(Object.prototype);")
+        .build()?;
 
     // Detect tools before restoring the queue so restored jobs see accurate dependency state.
     tauri::async_runtime::spawn(async move {
@@ -190,7 +209,11 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_filter(|label| !tiktok::is_guest_window(label))
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())

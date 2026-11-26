@@ -14,6 +14,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "DarkLoad",
         "width": 1280,
         "height": 820,
@@ -55,8 +56,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPCACHE/thumbnails/*"]
-      },
-      "freezePrototype": true
+      }
     }
   },
   "bundle": {

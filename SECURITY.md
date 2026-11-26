@@ -32,3 +32,4 @@ You should receive an acknowledgement within seven days. Confirmed issues are fi
 - TikTok and Instagram account connections are optional. Credentials are entered only on the platform's sign-in page, which opens in a webview without access to DarkLoad's commands.
 - Session cookies stay in DarkLoad's local webview storage. DarkLoad passes them to yt-dlp in a temporary file for analysis or downloads from the matching platform, then removes the file. Disconnecting removes the platform's session cookies from the webview.
 - An account connection uses the account's existing access. DRM, paywalls and private-content protections still apply.
+- The TikTok guest fallback runs in an isolated webview without application commands. It accepts media URLs only from TikTok's CDN domains and uses a temporary guest cookie file when yt-dlp downloads the selected stream.

@@ -26,6 +26,7 @@ use crate::process;
 use crate::security::{self, DuplicatePolicy, Placement};
 use crate::settings::{MediaType, PartialFilePolicy, Settings};
 use crate::storage::{HistoryEntry, Storage};
+use crate::tiktok::{GuestPlayer, GuestVideo};
 
 pub const PROGRESS_FILE: &str = ".darkload-ffmpeg-progress.txt";
 const EMIT_INTERVAL: Duration = Duration::from_millis(250);
@@ -240,6 +241,7 @@ pub struct QueueManager {
     sink: Arc<dyn EventSink>,
     shutdown: CancellationToken,
     cookies: RwLock<Option<Arc<dyn CookieProvider>>>,
+    guest_player: RwLock<Option<Arc<GuestPlayer>>>,
 }
 
 fn now_ms() -> i64 {
@@ -273,6 +275,7 @@ impl QueueManager {
             sink,
             shutdown: CancellationToken::new(),
             cookies: RwLock::new(None),
+            guest_player: RwLock::new(None),
         })
     }
 
@@ -629,6 +632,10 @@ impl QueueManager {
         *self.cookies.write().unwrap_or_else(|e| e.into_inner()) = Some(provider);
     }
 
+    pub(crate) fn set_guest_player(&self, player: Arc<GuestPlayer>) {
+        *self.guest_player.write().unwrap_or_else(|e| e.into_inner()) = Some(player);
+    }
+
     async fn execute(&self, id: &str, token: &CancellationToken) -> AppResult<Outcome> {
         let platform = self
             .lock()
@@ -650,7 +657,32 @@ impl QueueManager {
             Some(text) => Some(crate::accounts::write_cookie_file(&work_dir, &text)?),
             None => None,
         };
-        let result = self.execute_inner(id, token, cookie_file.as_deref()).await;
+        let mut result = self
+            .execute_inner(id, token, cookie_file.as_deref(), None)
+            .await;
+        if let Err(error) = &result {
+            if cookie_file.is_none() && platform == Some(Platform::Tiktok) {
+                let player = self
+                    .guest_player
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                let detected = self
+                    .lock()
+                    .jobs
+                    .iter()
+                    .find(|job| job.id == id)
+                    .and_then(|job| platform::detect(&job.request.url).ok());
+                if let (Some(player), Some(detected)) = (player, detected) {
+                    if GuestPlayer::can_try(&detected, error) {
+                        result = match player.resolve(&detected, token).await {
+                            Ok(video) => self.execute_inner(id, token, None, Some(video)).await,
+                            Err(e) => Err(e),
+                        };
+                    }
+                }
+            }
+        }
         // The session file lives only for the duration of the operation.
         if let Some(file) = &cookie_file {
             let _ = std::fs::remove_file(file);
@@ -669,6 +701,7 @@ impl QueueManager {
         id: &str,
         token: &CancellationToken,
         cookie_file: Option<&Path>,
+        guest: Option<GuestVideo>,
     ) -> AppResult<Outcome> {
         let job = self
             .lock()
@@ -681,13 +714,16 @@ impl QueueManager {
         let tools = self.deps.tool_paths(self.paths.ytdlp_cache.clone()).await?;
 
         // Resolve formats when the job was added without a fresh analysis.
-        let plan = match job.plan.clone() {
+        let plan = match job.plan.clone().filter(|_| guest.is_none()) {
             Some(plan) => plan,
             None => {
                 let detected = platform::detect(&job.request.url)?;
-                let analysis =
+                let analysis = if let Some(video) = &guest {
+                    video.analysis()?
+                } else {
                     extractor::analyze(&tools, &detected, (&settings).into(), cookie_file, token)
-                        .await?;
+                        .await?
+                };
                 let media = match analysis {
                     Analysis::Media(m) => *m,
                     Analysis::Playlist(p) => match job.request.playlist_item {
@@ -743,6 +779,7 @@ impl QueueManager {
         std::fs::create_dir_all(&work_dir)?;
         check_disk_space(&plan, &work_dir, &output_dir)?;
 
+        let guest_files = guest.as_ref().map(GuestVideo::download_files).transpose()?;
         let progress_file = work_dir.join(PROGRESS_FILE);
         let stream_sizes: Vec<Option<u64>> = [plan.video.as_ref(), plan.audio.as_ref()]
             .into_iter()
@@ -762,7 +799,11 @@ impl QueueManager {
                 settings: &settings,
                 work_dir: &work_dir,
                 ffmpeg_progress_file: Some(&progress_file),
-                cookies_file: cookie_file,
+                cookies_file: guest_files
+                    .as_ref()
+                    .map(|files| files.cookies_path())
+                    .or(cookie_file),
+                info_file: guest_files.as_ref().map(|files| files.info_path()),
             };
             let args: Vec<OsString> = download::build_args(&tools, &spec);
             self.update(id, true, |job| {
@@ -783,7 +824,14 @@ impl QueueManager {
                     expected_streams,
                     stream_sizes.clone(),
                 )
-                .await;
+                .await
+                .map_err(|mut error| {
+                    if guest_files.is_some() {
+                        // yt-dlp may include signed media addresses in stderr.
+                        error.detail = None;
+                    }
+                    error
+                });
             match result {
                 Ok(final_path) => {
                     let _ = std::fs::remove_file(&progress_file);

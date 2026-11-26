@@ -69,7 +69,7 @@ It is a native desktop application built with Tauri and Rust, with a pure-black 
 | TikTok | Public videos, standard and shortened links (`vm.`/`vt.` and `/t/`), audio extraction |
 | Instagram | Public reels, video posts and video carousels, audio extraction |
 
-DarkLoad can download public media without an account when the platform serves it to guests. You can optionally connect your own TikTok or Instagram account in **Settings → Accounts** if the platform asks you to sign in. A connection only works for content your account can already access. Download only content you own or are authorized to save.
+DarkLoad can download public media without an account when the platform serves it to guests. If TikTok requests sign-in, DarkLoad also tries its public embedded player in an isolated guest session. You can optionally connect your own TikTok or Instagram account in **Settings → Accounts** if guest access is unavailable. A connection only works for content your account can already access. Download only content you own or are authorized to save.
 
 ## Installation
 
@@ -95,6 +95,8 @@ On first launch DarkLoad offers to install its components (yt-dlp, FFmpeg/FFprob
 DarkLoad has no telemetry, analytics, tracking, advertisements or cloud synchronization. It contacts the platforms you use, GitHub when you install or update components or check for app updates, and thumbnail servers for media you analyze. Clipboard monitoring is off by default. History, settings and the queue stay in a local SQLite database.
 
 If you connect TikTok or Instagram, enter your credentials only on the platform's own sign-in page. DarkLoad keeps the session cookies in its local webview storage and provides them to yt-dlp in a temporary file during analysis and downloads from that platform. **Disconnect** removes the platform's session cookies from DarkLoad.
+
+The TikTok guest player uses a private webview and temporary guest cookies for its media requests.
 
 ## Development
 

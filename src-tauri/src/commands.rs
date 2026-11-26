@@ -40,6 +40,7 @@ pub struct AppState {
     pub paths: AppPaths,
     pub analyses: Mutex<HashMap<String, CancellationToken>>,
     pub thumbnail_slots: Semaphore,
+    pub(crate) tiktok_guest: Arc<crate::tiktok::GuestPlayer>,
 }
 
 impl AppState {
@@ -140,20 +141,35 @@ pub async fn analyze_url(
         .cache_dir
         .join("sessions")
         .join(uuid::Uuid::new_v4().simple().to_string());
-    let cookie_file = match accounts::export(&app, detected.platform).await {
-        Some(text) => Some(accounts::write_cookie_file(&session_dir, &text)?),
-        None => None,
-    };
-    let result = extractor::analyze(&tools, &detected, net, cookie_file.as_deref(), &token).await;
-    let _ = std::fs::remove_dir_all(&session_dir);
-    let result = match result {
-        Err(e) if e.code == ErrorCode::LoginRequired && cookie_file.is_none() => {
-            Err(accounts::login_hint(detected.platform)
-                .map(|hint| hint.with_detail(e.detail.clone().unwrap_or_default()))
-                .unwrap_or(e))
+    let result = async {
+        let cookie_file = match accounts::export(&app, detected.platform).await {
+            Some(text) => Some(accounts::write_cookie_file(&session_dir, &text)?),
+            None => None,
+        };
+        match extractor::analyze(&tools, &detected, net, cookie_file.as_deref(), &token).await {
+            Err(e)
+                if cookie_file.is_none() && crate::tiktok::GuestPlayer::can_try(&detected, &e) =>
+            {
+                match state.tiktok_guest.resolve(&detected, &token).await {
+                    Ok(video) => video.analysis(),
+                    Err(guest_error) if guest_error.code == ErrorCode::Cancelled => {
+                        Err(guest_error)
+                    }
+                    Err(guest_error) => Err(accounts::login_hint(detected.platform)
+                        .unwrap_or(e)
+                        .with_detail(guest_error.message)),
+                }
+            }
+            Err(e) if e.code == ErrorCode::LoginRequired && cookie_file.is_none() => {
+                Err(accounts::login_hint(detected.platform)
+                    .map(|hint| hint.with_detail(e.detail.clone().unwrap_or_default()))
+                    .unwrap_or(e))
+            }
+            other => other,
         }
-        other => other,
-    };
+    }
+    .await;
+    let _ = std::fs::remove_dir_all(&session_dir);
     state
         .analyses
         .lock()
