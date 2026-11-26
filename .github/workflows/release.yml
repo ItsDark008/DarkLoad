@@ -84,7 +84,7 @@ jobs:
         run: pnpm tauri build --target ${{ matrix.target }} --config release-config.json
       - name: Collect artifacts
         run: node scripts/release/collect.mjs --target ${{ matrix.target }} --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --out release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.platform }}-${{ matrix.arch }}
           path: release/*
