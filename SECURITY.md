@@ -29,4 +29,6 @@ You should receive an acknowledgement within seven days. Confirmed issues are fi
 - File names are sanitized (including Windows reserved names), output paths are validated, and finished files never silently overwrite existing ones unless the user chooses that policy.
 - yt-dlp, FFmpeg and Deno are downloaded from their official GitHub releases and installed only after their published SHA-256 checksums match.
 - Application updates are accepted only with a valid signature from the project's update key.
-- DarkLoad stores no credentials and does not sign in to any platform.
+- TikTok and Instagram account connections are optional. Credentials are entered only on the platform's sign-in page, which opens in a webview without access to DarkLoad's commands.
+- Session cookies stay in DarkLoad's local webview storage. DarkLoad passes them to yt-dlp in a temporary file for analysis or downloads from the matching platform, then removes the file. Disconnecting removes the platform's session cookies from the webview.
+- An account connection uses the account's existing access. DRM, paywalls and private-content protections still apply.

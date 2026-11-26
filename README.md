@@ -23,7 +23,7 @@
 
 Most downloaders guess. DarkLoad **inspects the formats a source offers**, shows you exactly what is available, and picks the best streams for the mode you choose. Video and audio streams are merged with FFmpeg **without re-encoding**, so the original resolution, frame rate, codec and dynamic range are preserved. When a container cannot hold the best streams, DarkLoad tells you and offers a container that can, instead of silently lowering quality. It never upscales or advertises quality the source does not have.
 
-It is a native desktop application built with Tauri and Rust: small, quick to start, with a pure-black OLED interface, and no accounts, telemetry, ads or cloud services.
+It is a native desktop application built with Tauri and Rust, with a pure-black OLED interface. DarkLoad requires no account of its own and has no telemetry, ads or cloud services.
 
 ## Features
 
@@ -69,7 +69,7 @@ It is a native desktop application built with Tauri and Rust: small, quick to st
 | TikTok | Public videos, standard and shortened links (`vm.`/`vt.` and `/t/`), audio extraction |
 | Instagram | Public reels, video posts and video carousels, audio extraction |
 
-DarkLoad only downloads content that is publicly accessible without signing in. It does **not** bypass DRM, paywalls, private-content protections or any other access control. Download only content you own or are authorized to save.
+DarkLoad can download public media without an account when the platform serves it to guests. You can optionally connect your own TikTok or Instagram account in **Settings → Accounts** if the platform asks you to sign in. A connection only works for content your account can already access. Download only content you own or are authorized to save.
 
 ## Installation
 
@@ -92,7 +92,9 @@ On first launch DarkLoad offers to install its components (yt-dlp, FFmpeg/FFprob
 
 ## Privacy
 
-DarkLoad has no telemetry, analytics, tracking, advertisements, accounts or cloud synchronization. It contacts only the platforms you download from, GitHub when you install or update components or check for app updates, and thumbnail servers for media you analyze. Clipboard monitoring is off by default. History, settings and the queue stay in a local SQLite database.
+DarkLoad has no telemetry, analytics, tracking, advertisements or cloud synchronization. It contacts the platforms you use, GitHub when you install or update components or check for app updates, and thumbnail servers for media you analyze. Clipboard monitoring is off by default. History, settings and the queue stay in a local SQLite database.
+
+If you connect TikTok or Instagram, enter your credentials only on the platform's own sign-in page. DarkLoad keeps the session cookies in its local webview storage and provides them to yt-dlp in a temporary file during analysis and downloads from that platform. **Disconnect** removes the platform's session cookies from DarkLoad.
 
 ## Development
 
@@ -105,7 +107,8 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for prerequisites, architecture, 
 
 ## Known limitations
 
-- Content that requires signing in (private videos, age-restricted or members-only content, Instagram stories) is not supported, by design.
+- TikTok and Instagram may require sign-in or limit guest access even for public posts. Availability depends on the link and the platform's response to your connection. The embedded sign-in window may fail with some login providers.
+- DarkLoad respects DRM, paywalls and other platform access controls. Instagram stories are outside the supported content types.
 - Platforms change frequently. When extraction breaks, update yt-dlp from **Settings → Dependencies**.
 - YouTube extraction relies on the Deno JavaScript runtime; without it fewer formats are available.
 - Merge and conversion progress is measured from FFmpeg; a few short post-processing steps report completion only.

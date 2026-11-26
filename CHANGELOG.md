@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
+- Optional TikTok and Instagram account connections for platforms that require sign-in to serve some public posts. Sign-in takes place on the platform's own page, and sessions stay on the device.
 - Customizable background color for the OLED theme, with presets (Pure black, Midnight, Plum, Forest, Ember, Graphite) or any sufficiently dark custom color. All surfaces are derived from it, and colors too bright for readable text are rejected.
 - "Prefer IPv4" network setting, enabled by default, which prevents analysis from stalling on networks with broken IPv6 connectivity.
 
