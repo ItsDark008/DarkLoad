@@ -15,14 +15,27 @@ if (!repository || !version) {
 const names = existsSync(dir) ? readdirSync(dir) : [];
 const platforms = {};
 const archKey = { x64: "x86_64", arm64: "aarch64" };
+// Each installation type updates through its own package: `{os}-{arch}-{installer}`.
+// The plain `{os}-{arch}` key is the fallback for older clients (NSIS on Windows, AppImage on Linux).
+const installers = [
+  [/-setup\.exe$/, "nsis", true],
+  [/\.msi$/, "msi", false],
+  [/\.AppImage$/, "appimage", true],
+  [/\.deb$/, "deb", false],
+  [/\.rpm$/, "rpm", false],
+];
 for (const name of names) {
-  const match = /^DarkLoad_[^_]+_(windows|linux)_(x64|arm64)(-setup\.exe|\.AppImage)$/.exec(name);
+  const match = /^DarkLoad_[^_]+_(windows|linux)_(x64|arm64)(-setup\.exe|\.msi|\.AppImage|\.deb|\.rpm)$/.exec(name);
   if (!match || !names.includes(`${name}.sig`)) continue;
   const [, platform, arch] = match;
-  platforms[`${platform}-${archKey[arch]}`] = {
+  const [, installer, isDefault] = installers.find(([pattern]) => pattern.test(name));
+  const entry = {
     signature: readFileSync(join(dir, `${name}.sig`), "utf8").trim(),
     url: `https://github.com/${repository}/releases/download/${tag}/${name}`,
   };
+  const key = `${platform}-${archKey[arch]}`;
+  platforms[`${key}-${installer}`] = entry;
+  if (isDefault) platforms[key] = entry;
 }
 
 if (Object.keys(platforms).length === 0) {

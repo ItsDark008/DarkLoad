@@ -40,6 +40,8 @@ pub struct AppState {
     pub analyses: Mutex<HashMap<String, CancellationToken>>,
     pub thumbnail_slots: Semaphore,
     pub(crate) tiktok_guest: Arc<crate::tiktok::GuestPlayer>,
+    pub(crate) spotify: Arc<crate::spotify::SpotifyClient>,
+    pub updates: Arc<updater::UpdateService>,
 }
 
 impl AppState {
@@ -89,8 +91,21 @@ pub fn app_info(app: AppHandle, state: State<'_, AppState>) -> AppInfo {
 }
 
 #[tauri::command]
-pub async fn app_check_update(app: AppHandle) -> Cmd<UpdateInfo> {
-    updater::check(&app).await
+pub async fn app_check_update(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    force: Option<bool>,
+) -> Cmd<UpdateInfo> {
+    if force == Some(false) {
+        return Ok(state.updates.status(&app));
+    }
+    let info = state.updates.check(&app).await?;
+    let mode = state.settings().update_mode;
+    if info.available && info.installable && mode == updater::UpdateMode::Auto {
+        // Start the background download right away instead of waiting for the next check.
+        state.updates.wake();
+    }
+    Ok(info)
 }
 
 #[tauri::command]
@@ -100,8 +115,9 @@ pub async fn app_install_update(app: AppHandle, state: State<'_, AppState>) -> C
             "Finish or pause active downloads before installing the update.",
         ));
     }
-    updater::install(&app).await?;
+    state.updates.prepare_install(&app).await?;
     state.queue.shutdown().await;
+    state.updates.install(true)?;
     app.restart();
 }
 
@@ -132,8 +148,23 @@ pub async fn analyze_url(
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .insert(request_id.clone(), token.clone());
-    let net = extractor::NetOptions::from(&state.settings());
-    let result = match extractor::analyze(&tools, &detected, net, &token).await {
+    let settings = state.settings();
+    let net = extractor::NetOptions::from(&settings);
+    let analysis = if detected.platform == platform::Platform::Spotify {
+        let creds = crate::spotify::Credentials::from_settings(&settings);
+        crate::spotify::analyze(
+            &state.spotify,
+            &tools,
+            net,
+            &detected,
+            creds.as_ref(),
+            &token,
+        )
+        .await
+    } else {
+        extractor::analyze(&tools, &detected, net, &token).await
+    };
+    let result = match analysis {
         Err(error) if crate::tiktok::GuestPlayer::can_try(&detected, &error) => state
             .tiktok_guest
             .resolve(&detected, &token)
@@ -158,6 +189,7 @@ pub async fn analyze_url(
             }
             // Cache under the canonical form the queue and planner use for lookups. Short links
             // resolve to the extractor's page URL; anything unrecognized keeps the input URL.
+            // Spotify media already carries its canonical Spotify URL.
             media.url = platform::detect(&media.url)
                 .map(|d| d.url)
                 .unwrap_or_else(|_| detected.url.clone());
@@ -230,6 +262,10 @@ pub fn plan_download(
                 "Analyze this link before choosing a quality.",
             )
         })?;
+    let mut options = options;
+    if detected.platform == platform::Platform::Spotify {
+        options.media_type = crate::settings::MediaType::Audio;
+    }
     formats::plan(&media.formats, media.duration, &options)
 }
 
@@ -513,6 +549,9 @@ pub fn settings_update(
         });
     }
     state.queue.wake();
+    if previous.update_mode != settings.update_mode {
+        state.updates.wake();
+    }
     let _ = app.emit(events::SETTINGS_CHANGED, &settings);
     Ok(settings)
 }

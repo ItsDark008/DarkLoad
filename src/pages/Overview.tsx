@@ -34,6 +34,7 @@ const PLATFORM_CONTENT: Record<Platform, string> = {
   youtube: "Videos, Shorts, playlists, archived streams",
   tiktok: "Public videos and short links",
   instagram: "Public reels, posts and carousels",
+  spotify: "Songs, albums and playlists, matched on YouTube",
 };
 
 export function OverviewPage() {
@@ -136,7 +137,7 @@ export function OverviewPage() {
           <section>
             <SectionTitle>Supported platforms</SectionTitle>
             <div className="space-y-2">
-              {(["youtube", "tiktok", "instagram"] as Platform[]).map((p) => (
+              {(["youtube", "tiktok", "instagram", "spotify"] as Platform[]).map((p) => (
                 <button
                   key={p}
                   type="button"

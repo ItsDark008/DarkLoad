@@ -19,7 +19,7 @@ interface UrlFieldProps {
 }
 
 export const UrlField = forwardRef<HTMLInputElement, UrlFieldProps>(function UrlField(
-  { value, onChange, onSubmit, action, size = "lg", placeholder = "Paste a YouTube, TikTok or Instagram link", disabled, autoFocus },
+  { value, onChange, onSubmit, action, size = "lg", placeholder = "Paste a YouTube, TikTok, Instagram or Spotify link", disabled, autoFocus },
   ref,
 ) {
   const platform = detectPlatform(value);

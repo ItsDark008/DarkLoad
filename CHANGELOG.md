@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- Spotify songs, albums and playlists (`open.spotify.com` links, `spotify:` URIs and `spotify.link` short links). DarkLoad reads the song metadata from Spotify, finds the same recording on YouTube by title, artist and duration, downloads that audio and tags the file with Spotify's title, artists, album, track number, release date and cover. Spotify's own DRM-protected audio is never downloaded.
+- The queue shows which YouTube upload was used as the audio source for each Spotify song. Songs without a reliable match fail with a clear message instead of downloading something else.
+- Optional Spotify API credentials (Settings → Downloads) to read playlists with more than 100 songs and album names for single songs.
+- Automatic application updates. DarkLoad checks at startup and every 6 hours, downloads a new version in the background, verifies its signature and installs it when DarkLoad closes, or immediately with "Restart now". Settings → Updates offers "Download and install", "Only notify me" and "Off". Portable copies only announce new versions.
+- The update manifest lists a package per installation type (NSIS, MSI, AppImage, deb and rpm), so every copy updates with the installer it was installed with.
+
+### Changed
+
+- The "Check for updates automatically" switch became the update mode setting; turning it off in 1.0 carries over as "Off".
+- DarkLoad is now credited to ItsDark008 in the license, the About page and the application metadata.
+
+### Notes
+
+- Version 1.0.0 was published without an update channel, so it cannot update itself. Install the next version once manually; later versions update automatically.
+
 ## [1.0.0] - 2026-11-26
 
 ### Added

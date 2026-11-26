@@ -13,9 +13,10 @@ import type { Container, DownloadOptions, MediaFormat, MediaInfo, PlaylistEntry,
 
 export function MediaCard({ media }: { media: MediaInfo }) {
   const s = media.summary;
+  const song = media.spotify ?? null;
   return (
     <div className="flex gap-4">
-      <Thumb local={media.thumbnailLocal} remote={media.thumbnail} className="aspect-video w-[220px] shrink-0" alt="" />
+      <Thumb local={media.thumbnailLocal} remote={media.thumbnail} audio={!!song} className={cn("shrink-0", song ? "aspect-square w-[124px]" : "aspect-video w-[220px]")} alt="" />
       <div className="min-w-0 flex-1 py-0.5">
         <div className="flex items-center gap-2 text-xs text-fg-2">
           <PlatformIcon platform={media.platform} className="size-3.5" />
@@ -31,21 +32,30 @@ export function MediaCard({ media }: { media: MediaInfo }) {
         </h2>
         <div className="mt-1 truncate text-[13px] text-fg-2" data-selectable>
           {media.uploader ?? "Unknown creator"}
+          {song?.album ? <span className="text-muted"> · {song.album}</span> : null}
         </div>
+        {song?.sourceUrl ? (
+          <div className="mt-1 truncate text-xs text-muted" data-selectable title={song.sourceUrl}>
+            Audio source on YouTube: {song.sourceTitle ?? song.sourceUrl}
+            {song.sourceChannel ? ` — ${song.sourceChannel}` : ""}
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {media.duration != null ? (
             <Badge>
               <Clock /> {formatDuration(media.duration)}
             </Badge>
           ) : null}
-          {s.maxHeight ? <Badge tone="accent">Up to {s.maxHeight}p{s.maxFps && s.maxFps > 30 ? s.maxFps : ""}</Badge> : null}
+          {s.maxHeight && !song ? <Badge tone="accent">Up to {s.maxHeight}p{s.maxFps && s.maxFps > 30 ? s.maxFps : ""}</Badge> : null}
+          {song?.releaseDate ? <Badge>{song.releaseDate.slice(0, 4)}</Badge> : null}
+          {song?.explicit ? <Badge>Explicit</Badge> : null}
           {s.hasHdr ? <Badge tone="accent">HDR</Badge> : null}
           {media.chapters > 0 ? (
             <Badge>
               <ListTree /> {media.chapters} chapters
             </Badge>
           ) : null}
-          {media.subtitles.some((t) => !t.automatic) ? (
+          {media.subtitles.some((t) => !t.automatic) && !song ? (
             <Badge>
               <Captions /> {media.subtitles.filter((t) => !t.automatic).length} subtitle tracks
             </Badge>
@@ -270,7 +280,7 @@ export function PlaylistPicker({
               >
                 <Checkbox checked={selected.has(entry.index)} disabled={!entry.available} aria-label={`Select ${entry.title}`} onClick={(e) => e.stopPropagation()} onCheckedChange={() => toggle(entry)} />
                 <span className="tabular w-7 shrink-0 text-right text-xs text-muted">{entry.index}</span>
-                <Thumb remote={entry.thumbnail} local={entry.media?.thumbnailLocal} className="aspect-video h-10 shrink-0" />
+                <Thumb remote={entry.thumbnail} local={entry.media?.thumbnailLocal} audio={playlist.platform === "spotify"} className={cn("h-10 shrink-0", playlist.platform === "spotify" ? "aspect-square" : "aspect-video")} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] text-fg">{entry.title}</div>
                   <div className="truncate text-xs text-fg-2">{entry.uploader ?? (entry.available ? "" : "Unavailable")}</div>

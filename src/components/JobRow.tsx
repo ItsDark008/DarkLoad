@@ -27,6 +27,11 @@ import { cn } from "@/lib/utils";
 import { api } from "@/services/api";
 import type { Job } from "@/types/api";
 
+/** Spotify source details are information, not warnings. */
+function isInfoNote(note: string): boolean {
+  return note.startsWith("Audio source on YouTube:") || note.startsWith("Matched automatically by title");
+}
+
 function run(action: Promise<unknown>, failure: string) {
   action.catch((error: { message?: string }) => toast.error(failure, { description: error.message }));
 }
@@ -150,9 +155,11 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
             </p>
           ) : null}
           {job.notes.length > 0 && !compact ? (
-            <ul className="mt-1.5 space-y-0.5 text-xs text-warning/90">
+            <ul className="mt-1.5 space-y-0.5 text-xs">
               {job.notes.map((note) => (
-                <li key={note}>{note}</li>
+                <li key={note} className={isInfoNote(note) ? "break-all text-fg-2" : "text-warning/90"} data-selectable>
+                  {note}
+                </li>
               ))}
             </ul>
           ) : null}

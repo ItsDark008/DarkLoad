@@ -1,11 +1,13 @@
 import { useId, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 import {
   Brush,
   CircleArrowUp,
   Download,
+  ExternalLink,
   FileCog,
   Loader2,
   Package,
@@ -159,6 +161,48 @@ function General({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promi
   );
 }
 
+function SpotifyCredentials({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promise<boolean> }) {
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const id = clientId ?? s.spotifyClientId;
+  const sec = secret ?? s.spotifyClientSecret;
+  const changed = id !== s.spotifyClientId || sec !== s.spotifyClientSecret;
+  const configured = s.spotifyClientId !== "" && s.spotifyClientSecret !== "";
+  const save = (spotifyClientId: string, spotifyClientSecret: string) =>
+    void set({ spotifyClientId: spotifyClientId.trim(), spotifyClientSecret: spotifyClientSecret.trim() }).then((ok) => {
+      if (ok) {
+        setClientId(null);
+        setSecret(null);
+      }
+    });
+  return (
+    <Group title="Spotify">
+      <div className="px-5 py-4">
+        <div className="flex items-center gap-2 text-[13px] font-medium">
+          Spotify API credentials <Badge>{configured ? "In use" : "Optional"}</Badge>
+        </div>
+        <div className="mt-0.5 mb-3 text-xs leading-relaxed text-fg-2">
+          Without credentials DarkLoad reads Spotify's public player, which lists at most 100 songs of an album or playlist and no album name for single songs. With the Client ID and Client Secret of your own app from the Spotify Developer Dashboard, long playlists are read in full. Spotify's own editorial playlists are still read from the public player. The credentials stay on this computer.
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Input className="font-mono" value={id} maxLength={64} placeholder="Client ID" autoComplete="off" spellCheck={false} onChange={(e) => setClientId(e.target.value)} aria-label="Spotify Client ID" />
+          <Input className="font-mono" type="password" value={sec} maxLength={64} placeholder="Client Secret" autoComplete="off" spellCheck={false} onChange={(e) => setSecret(e.target.value)} aria-label="Spotify Client Secret" />
+        </div>
+        <div className="mt-3 flex justify-end gap-2">
+          {configured ? (
+            <Button variant="ghost" onClick={() => save("", "")}>
+              Remove
+            </Button>
+          ) : null}
+          <Button disabled={!changed} onClick={() => save(id, sec)}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </Group>
+  );
+}
+
 function Downloads({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promise<boolean> }) {
   return (
     <>
@@ -199,6 +243,7 @@ function Downloads({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Pro
           <Select aria-label="Partial files" className="w-48" value={s.partialFiles} onValueChange={(partialFiles) => void set({ partialFiles })} options={[{ value: "delete", label: "Delete" }, { value: "keep", label: "Keep to resume later" }]} />
         </Row>
       </Group>
+      <SpotifyCredentials s={s} set={set} />
     </>
   );
 }
@@ -493,7 +538,7 @@ function Updates({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promi
     setChecking(true);
     setMessage(null);
     try {
-      const result = await api.checkAppUpdate();
+      const result = await api.checkAppUpdate(true);
       setUpdate(result);
       setMessage(result.available ? null : `DarkLoad ${result.currentVersion} is the latest version.`);
     } catch (e) {
@@ -509,13 +554,25 @@ function Updates({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promi
         <Row label="Current version">
           <span className="tabular font-mono text-[13px]">{info?.version}</span>
         </Row>
-        <ToggleSetting label="Check for updates automatically" description="Checks once at startup. Only the version information is requested; nothing about you is sent." value={s.autoCheckUpdates} onChange={(autoCheckUpdates) => void set({ autoCheckUpdates })} />
+        <Row label="Automatic updates" description="DarkLoad checks at startup and every 6 hours. Only the version information is requested; nothing about you is sent. Every update is verified against DarkLoad's signing key before it is installed.">
+          <Select
+            aria-label="Automatic updates"
+            className="w-56"
+            value={s.updateMode}
+            onValueChange={(updateMode) => void set({ updateMode })}
+            options={[
+              { value: "auto", label: "Download and install", description: "Installs when you close DarkLoad, or restart from the notification." },
+              { value: "notify", label: "Only notify me", description: "Tells you about new versions; you decide when to install." },
+              { value: "off", label: "Off", description: "Never checks in the background." },
+            ]}
+          />
+        </Row>
         <div className="px-5 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <Button disabled={checking} onClick={() => void check()}>
               {checking ? <Loader2 className="animate-spin" /> : <RefreshCw />} Check now
             </Button>
-            {update?.available ? (
+            {update?.available && update.installable ? (
               <Button
                 variant="primary"
                 disabled={installing}
@@ -527,10 +584,17 @@ function Updates({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promi
                     .finally(() => setInstalling(false));
                 }}
               >
-                {installing ? <Loader2 className="animate-spin" /> : <CircleArrowUp />} Install {update.version} and restart
+                {installing ? <Loader2 className="animate-spin" /> : <CircleArrowUp />} {update.ready ? "Restart and install" : "Install"} {update.version}
+              </Button>
+            ) : null}
+            {update?.available && !update.installable && info?.repository ? (
+              <Button variant="primary" onClick={() => void openUrl(`https://github.com/${info.repository}/releases/latest`)}>
+                <ExternalLink /> Download {update.version}
               </Button>
             ) : null}
           </div>
+          {update?.available && update.ready ? <p className="mt-3 text-xs text-fg-2">DarkLoad {update.version} is downloaded and verified. It installs when you close DarkLoad.</p> : null}
+          {update?.available && !update.installable ? <p className="mt-3 text-xs text-fg-2">This portable copy cannot update itself. Download the new version from the releases page, or use the installer to get automatic updates.</p> : null}
           {message ? <p className="mt-3 text-xs text-fg-2">{message}</p> : null}
           {!info?.updaterConfigured ? <p className="mt-3 text-xs text-fg-2">This build was compiled without an update channel. New versions are available from the project&apos;s releases page.</p> : null}
           {update?.available && update.notes ? (

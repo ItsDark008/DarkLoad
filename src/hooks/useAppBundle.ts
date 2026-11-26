@@ -1,6 +1,6 @@
 import { useApp } from "@/stores/app";
 import type { Settings } from "@/types/api";
-import { useAppearance, useBackendEvents, useClipboardWatcher, useCloseGuard, useGlobalShortcuts, useStartupUpdateCheck } from "./useAppEffects";
+import { useAppearance, useBackendEvents, useClipboardWatcher, useCloseGuard, useGlobalShortcuts, useUpdateNotifications } from "./useAppEffects";
 
 /** Wires every application-level side effect in one place. */
 export function useAppEffectsBundle(settings: Settings | null, askToClose: () => Promise<boolean>) {
@@ -10,5 +10,5 @@ export function useAppEffectsBundle(settings: Settings | null, askToClose: () =>
   useGlobalShortcuts();
   useClipboardWatcher(settings?.clipboardMonitoring ?? false);
   useCloseGuard(settings?.confirmExitWithActiveDownloads ?? true, askToClose);
-  useStartupUpdateCheck(settings?.autoCheckUpdates, info?.updaterConfigured);
+  useUpdateNotifications(info?.updaterConfigured);
 }

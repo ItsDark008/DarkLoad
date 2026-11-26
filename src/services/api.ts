@@ -45,7 +45,8 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 
 export const api = {
   appInfo: () => call<AppInfo>("app_info"),
-  checkAppUpdate: () => call<UpdateInfo>("app_check_update"),
+  /** `force: false` returns the last known status without contacting the server. */
+  checkAppUpdate: (force = true) => call<UpdateInfo>("app_check_update", { force }),
   installAppUpdate: () => call<void>("app_install_update"),
 
   detectUrl: (url: string) => call<DetectedUrl>("detect_url", { url }),
@@ -102,5 +103,6 @@ export const events = {
   depsChanged: "deps://changed",
   settingsChanged: "settings://changed",
   updaterProgress: "updater://progress",
+  updaterStatus: "updater://status",
   historyChanged: "history://changed",
 } as const;

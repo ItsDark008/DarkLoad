@@ -93,3 +93,8 @@ export function errorHint(code: ErrorCode): string | null {
       return null;
   }
 }
+
+/** Spotify links only ever produce audio, whatever the current media type is. */
+export function optionsForPlatform(options: DownloadOptions, platform: string | undefined): DownloadOptions {
+  return platform === "spotify" && options.mediaType !== "audio" ? { ...options, mediaType: "audio" } : options;
+}

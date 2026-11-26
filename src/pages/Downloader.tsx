@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { ArrowDownToLine, FolderOpen, Link2, ListVideo, Loader2, Search, Square } from "lucide-react";
@@ -12,7 +12,8 @@ import { Card, Kbd, SectionTitle, Skeleton } from "@/components/ui/controls";
 import { ConfirmDialog } from "@/components/ui/overlays";
 import { PlatformIcon } from "@/components/brand";
 import { formatRelative } from "@/lib/format";
-import { errorHint, optionsFromSettings } from "@/lib/options";
+import { errorHint, optionsForPlatform, optionsFromSettings } from "@/lib/options";
+import { detectPlatform } from "@/lib/urls";
 import { modKey } from "@/lib/utils";
 import { api } from "@/services/api";
 import { missingRequiredDeps, useApp } from "@/stores/app";
@@ -53,6 +54,7 @@ function requestFor(media: MediaInfo, options: DownloadOptions, outputDir: strin
     thumbnail: media.thumbnail,
     thumbnailLocal: media.thumbnailLocal,
     duration: media.duration,
+    spotify: media.spotify ?? null,
   };
 }
 
@@ -64,14 +66,16 @@ export function DownloaderPage() {
   const consumePendingUrl = useApp((s) => s.consumePendingUrl);
   const pendingUrl = useApp((s) => s.pendingUrl);
   const store = useDownloader();
-  const { url, setUrl, status, analysis, error, analyze, cancel, options, setOptions, patchOptions, plan, planError, setPlan, selected, setSelected, outputDir, setOutputDir } = store;
+  const { url, setUrl, status, analysis, error, analyze, cancel, options: storedOptions, setOptions, patchOptions, plan, planError, setPlan, selected, setSelected, outputDir, setOutputDir } = store;
+  const isSpotify = analysis?.platform === "spotify";
+  const options = useMemo(() => (storedOptions ? optionsForPlatform(storedOptions, analysis?.platform) : null), [storedOptions, analysis?.platform]);
   const inputRef = useRef<HTMLInputElement>(null);
   const [duplicate, setDuplicate] = useState<HistoryEntry | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!options && settings) setOptions(optionsFromSettings(settings));
-  }, [options, settings, setOptions]);
+    if (!storedOptions && settings) setOptions(optionsFromSettings(settings));
+  }, [storedOptions, settings, setOptions]);
 
   useEffect(() => {
     const pending = consumePendingUrl();
@@ -145,7 +149,7 @@ export function DownloaderPage() {
         .map<DownloadRequest>((e) =>
           e.media
             ? requestFor(e.media, options, outputDir)
-            : { url: e.url, options, outputDir, title: e.title, uploader: e.uploader, thumbnail: e.thumbnail, duration: e.duration },
+            : { url: e.url, options, outputDir, title: e.title, uploader: e.uploader, thumbnail: e.thumbnail, duration: e.duration, spotify: e.spotify ?? null },
         );
       await enqueue(requests);
     }
@@ -222,7 +226,7 @@ export function DownloaderPage() {
                 title="Paste a link to begin"
                 description={
                   <>
-                    Supports YouTube videos, Shorts, playlists and archived livestreams, public TikTok videos, and public Instagram reels and posts. Press{" "}
+                    Supports YouTube videos, Shorts, playlists and archived livestreams, public TikTok videos, public Instagram reels and posts, and Spotify songs, albums and playlists. Press{" "}
                     <Kbd>{modKey}</Kbd> <Kbd>Shift</Kbd> <Kbd>V</Kbd> to paste and analyze.
                   </>
                 }
@@ -231,6 +235,7 @@ export function DownloaderPage() {
                     <PlatformIcon platform="youtube" className="size-5" />
                     <PlatformIcon platform="tiktok" className="size-5" />
                     <PlatformIcon platform="instagram" className="size-5" />
+                    <PlatformIcon platform="spotify" className="size-5" />
                   </div>
                 }
               />
@@ -252,7 +257,8 @@ export function DownloaderPage() {
                 </div>
               </div>
               <div className="mt-5 flex items-center gap-2 text-xs text-fg-2">
-                <Loader2 className="size-3.5 animate-spin" /> Reading available formats from the source…
+                <Loader2 className="size-3.5 animate-spin" />{" "}
+                {detectPlatform(url) === "spotify" ? "Reading the song list from Spotify and finding the audio on YouTube…" : "Reading available formats from the source…"}
               </div>
             </Card>
           ) : null}
@@ -295,7 +301,7 @@ export function DownloaderPage() {
                 ) : null}
               </Card>
               <Card className="p-5">
-                <SectionTitle>Source formats</SectionTitle>
+                <SectionTitle>{isSpotify ? "Source formats on YouTube" : "Source formats"}</SectionTitle>
                 <FormatDetails media={media} />
               </Card>
             </>
@@ -307,7 +313,7 @@ export function DownloaderPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs text-fg-2">
                     <PlatformIcon platform={playlist.platform} className="size-3.5" />
-                    {playlist.platform === "instagram" ? "Post with multiple videos" : "Playlist"} · {playlist.entries.length} items
+                    {playlist.platform === "instagram" ? "Post with multiple videos" : playlist.platform === "spotify" && playlist.url.includes("/album/") ? "Album" : "Playlist"} · {playlist.entries.length} {isSpotify ? "songs" : "items"}
                   </div>
                   <h2 className="mt-1 truncate text-[16px] font-semibold" data-selectable>
                     {playlist.title}
@@ -315,8 +321,17 @@ export function DownloaderPage() {
                   {playlist.uploader ? <div className="text-[13px] text-fg-2">{playlist.uploader}</div> : null}
                 </div>
               </div>
+              {playlist.notice ? (
+                <InlineAlert className="mb-4" tone="warning" title="Part of this list">
+                  {playlist.notice}
+                </InlineAlert>
+              ) : null}
               <PlaylistPicker playlist={playlist} selected={selected} onSelectedChange={setSelected} />
-              <p className="mt-3 text-xs text-fg-2">Each selected item is analyzed when its download starts, so the chosen quality applies to the formats that item actually offers.</p>
+              <p className="mt-3 text-xs text-fg-2">
+                {isSpotify
+                  ? "Each selected song is matched on YouTube by title, artist and duration when its download starts. The chosen source is shown in the queue."
+                  : "Each selected item is analyzed when its download starts, so the chosen quality applies to the formats that item actually offers."}
+              </p>
             </Card>
           ) : null}
         </div>
@@ -325,7 +340,7 @@ export function DownloaderPage() {
           <Card className="p-5">
             <SectionTitle>Download options</SectionTitle>
             {options ? (
-              <DownloadOptionsForm options={options} onChange={patchOptions} summary={media?.summary ?? null} />
+              <DownloadOptionsForm options={options} onChange={patchOptions} summary={media?.summary ?? null} audioOnly={isSpotify} />
             ) : (
               <Skeleton className="h-40 w-full" />
             )}

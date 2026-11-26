@@ -2,7 +2,7 @@
 // The Rust backend performs the authoritative validation before anything is downloaded.
 import type { Platform } from "@/types/api";
 
-const URL_PATTERN = /\b(?:https?:\/\/)?(?:[a-z0-9-]+\.)*(?:youtube\.com|youtu\.be|youtube-nocookie\.com|tiktok\.com|instagram\.com|instagr\.am)\/[^\s<>"'`]*/gi;
+const URL_PATTERN = /\b(?:https?:\/\/)?(?:[a-z0-9-]+\.)*(?:youtube\.com|youtu\.be|youtube-nocookie\.com|tiktok\.com|instagram\.com|instagr\.am|open\.spotify\.com|spotify\.link)\/[^\s<>"'`]*|\bspotify:(?:track|album|playlist):[A-Za-z0-9]{22}\b/gi;
 const MAX_INPUT = 2048;
 
 function hostOf(input: string): string | null {
@@ -23,11 +23,13 @@ function matchesDomain(host: string, domain: string): boolean {
 
 /** Detects the platform of a URL by host name only. */
 export function detectPlatform(input: string): Platform | null {
+  if (/^spotify:/i.test(input.trim())) return "spotify";
   const host = hostOf(input);
   if (!host) return null;
   if (host === "youtu.be" || matchesDomain(host, "youtube.com") || matchesDomain(host, "youtube-nocookie.com")) return "youtube";
   if (matchesDomain(host, "tiktok.com")) return "tiktok";
   if (matchesDomain(host, "instagram.com") || host === "instagr.am") return "instagram";
+  if (host === "open.spotify.com" || host === "play.spotify.com" || host === "spotify.link" || host === "spotify.app.link") return "spotify";
   return null;
 }
 
@@ -39,11 +41,13 @@ function cleanMatch(match: string): string {
 /** Extracts supported links from arbitrary text (pasted lists, files, drag and drop). */
 export function extractUrls(text: string): string[] {
   const found = text.match(URL_PATTERN) ?? [];
-  return found.map(cleanMatch).map((u) => (u.includes("://") ? u : `https://${u}`));
+  return found.map(cleanMatch).map((u) => (u.includes("://") || /^spotify:/i.test(u) ? u : `https://${u}`));
 }
 
 /** Canonical key used to detect duplicate links regardless of tracking parameters. */
 export function urlKey(input: string): string {
+  const uri = input.trim().match(/^spotify:(track|album|playlist):([A-Za-z0-9]{22})$/i);
+  if (uri) return `spotify:${uri[1]!.toLowerCase()}:${uri[2]}`;
   try {
     const url = new URL(input.includes("://") ? input : `https://${input}`);
     const host = url.hostname.toLowerCase().replace(/^(www|m)\./, "");
@@ -55,6 +59,10 @@ export function urlKey(input: string): string {
       const shorts = url.pathname.match(/^\/(?:shorts|live|embed)\/([^/]+)/);
       if (shorts?.[1]) return `youtube:${shorts[1]}`;
       if (list) return `youtube-list:${list}`;
+    }
+    if (host === "open.spotify.com") {
+      const entity = url.pathname.match(/^\/(?:intl-[a-z-]+\/|embed\/)?(track|album|playlist)\/([A-Za-z0-9]{22})/i);
+      if (entity) return `spotify:${entity[1]!.toLowerCase()}:${entity[2]}`;
     }
     return `${host}${url.pathname.replace(/\/+$/, "")}`.toLowerCase();
   } catch {
@@ -79,4 +87,5 @@ export const PLATFORM_NAMES: Record<Platform, string> = {
   youtube: "YouTube",
   tiktok: "TikTok",
   instagram: "Instagram",
+  spotify: "Spotify",
 };

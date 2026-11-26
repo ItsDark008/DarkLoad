@@ -2,7 +2,7 @@
 name = "darkload"
 version = "1.0.0"
 description = "One link. Maximum quality."
-authors = ["DarkLoad contributors"]
+authors = ["ItsDark008"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.85"

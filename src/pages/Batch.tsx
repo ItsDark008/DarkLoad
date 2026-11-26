@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/input";
 import { Badge, Card, Checkbox, SectionTitle, Tooltip } from "@/components/ui/controls";
 import { Dialog, DialogContent, DropdownMenu } from "@/components/ui/overlays";
 import { formatDuration } from "@/lib/format";
-import { optionsFromSettings } from "@/lib/options";
+import { optionsForPlatform, optionsFromSettings } from "@/lib/options";
 import { dedupeUrls, extractUrls } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 import { api } from "@/services/api";
@@ -73,7 +73,7 @@ export function BatchPage() {
   const ingest = (raw: string, source: string) => {
     const urls = extractUrls(raw);
     if (urls.length === 0) {
-      toast.error("No supported links found", { description: `${source} did not contain YouTube, TikTok or Instagram links.` });
+      toast.error("No supported links found", { description: `${source} did not contain YouTube, TikTok, Instagram or Spotify links.` });
       return;
     }
     const { added, duplicates } = addUrls(urls);
@@ -111,17 +111,17 @@ export function BatchPage() {
     if (!globalOptions) return;
     const requests: DownloadRequest[] = [];
     for (const item of readyItems) {
-      const options = item.options ?? globalOptions;
       const a = item.analysis;
       if (!a) continue;
+      const options = optionsForPlatform(item.options ?? globalOptions, a.platform);
       if (a.kind === "media") {
-        requests.push({ url: a.url, playlistItem: a.playlistItem, options, outputDir, title: a.title, uploader: a.uploader, thumbnail: a.thumbnail, thumbnailLocal: a.thumbnailLocal, duration: a.duration });
+        requests.push({ url: a.url, playlistItem: a.playlistItem, options, outputDir, title: a.title, uploader: a.uploader, thumbnail: a.thumbnail, thumbnailLocal: a.thumbnailLocal, duration: a.duration, spotify: a.spotify ?? null });
       } else {
         for (const entry of a.entries.filter((e) => item.entries.includes(e.index) && e.available)) {
           requests.push(
             entry.media
               ? { url: entry.media.url, playlistItem: entry.media.playlistItem, options, outputDir, title: entry.title, thumbnail: entry.thumbnail, duration: entry.duration }
-              : { url: entry.url, options, outputDir, title: entry.title, uploader: entry.uploader, thumbnail: entry.thumbnail, duration: entry.duration },
+              : { url: entry.url, options, outputDir, title: entry.title, uploader: entry.uploader, thumbnail: entry.thumbnail, duration: entry.duration, spotify: entry.spotify ?? null },
           );
         }
       }

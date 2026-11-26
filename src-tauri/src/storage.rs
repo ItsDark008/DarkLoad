@@ -217,15 +217,13 @@ impl Storage {
             .conn()
             .query_row("SELECT json FROM settings WHERE id = 1", [], |r| r.get(0))
             .optional()?;
-        Ok(
-            json.and_then(|j| match serde_json::from_str::<Settings>(&j) {
-                Ok(s) => Some(s),
-                Err(e) => {
-                    tracing::warn!("ignoring unreadable settings: {e}");
-                    None
-                }
-            }),
-        )
+        Ok(json.and_then(|j| match parse_settings(&j) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                tracing::warn!("ignoring unreadable settings: {e}");
+                None
+            }
+        }))
     }
 
     pub fn save_settings(&self, settings: &Settings) -> AppResult<()> {
@@ -439,8 +437,32 @@ impl Storage {
     }
 }
 
+/// Reads stored settings, upgrading fields from older versions.
+fn parse_settings(json: &str) -> serde_json::Result<Settings> {
+    let mut value: serde_json::Value = serde_json::from_str(json)?;
+    if let Some(obj) = value.as_object_mut() {
+        // 1.0 stored a single "check for updates" switch; off becomes the "off" update mode.
+        if let Some(auto) = obj.remove("autoCheckUpdates") {
+            if !obj.contains_key("updateMode") && auto == serde_json::Value::Bool(false) {
+                obj.insert("updateMode".into(), "off".into());
+            }
+        }
+    }
+    serde_json::from_value(value)
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn migrates_the_update_switch() {
+        let off = parse_settings(r#"{"autoCheckUpdates":false}"#).unwrap();
+        assert_eq!(off.update_mode, crate::updater::UpdateMode::Off);
+        let on = parse_settings(r#"{"autoCheckUpdates":true}"#).unwrap();
+        assert_eq!(on.update_mode, crate::updater::UpdateMode::Auto);
+        let kept = parse_settings(r#"{"autoCheckUpdates":false,"updateMode":"notify"}"#).unwrap();
+        assert_eq!(kept.update_mode, crate::updater::UpdateMode::Notify);
+    }
+
     use super::*;
 
     fn entry(

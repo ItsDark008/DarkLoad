@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { codecLabel, formatBytes, formatDuration, formatEta, formatPercent, formatRelative, formatSpeed } from "./format";
 import { dedupeUrls, detectPlatform, extractUrls, urlKey } from "./urls";
 import { contrastRatio, isValidOledBackground, lighten, oledPalette, readableTextOn } from "./utils";
-import { errorHint, isFinished, isRunning, optionsFromSettings } from "./options";
-import type { Settings } from "@/types/api";
+import { errorHint, isFinished, isRunning, optionsForPlatform, optionsFromSettings } from "./options";
+import type { DownloadOptions, Settings } from "@/types/api";
 
 describe("formatBytes", () => {
   it("formats across units", () => {
@@ -56,10 +56,14 @@ describe("platform detection", () => {
     expect(detectPlatform("youtu.be/dQw4w9WgXcQ")).toBe("youtube");
     expect(detectPlatform("https://vm.tiktok.com/ZMabc/")).toBe("tiktok");
     expect(detectPlatform("https://www.instagram.com/reel/abc/")).toBe("instagram");
+    expect(detectPlatform("https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8")).toBe("spotify");
+    expect(detectPlatform("spotify:playlist:37i9dQZF1DXcBWIGoYBM5M")).toBe("spotify");
+    expect(detectPlatform("https://spotify.link/AbCdEf")).toBe("spotify");
   });
   it("rejects lookalikes and junk", () => {
     expect(detectPlatform("https://youtube.com.evil.example/watch")).toBeNull();
     expect(detectPlatform("https://notyoutube.com/watch")).toBeNull();
+    expect(detectPlatform("https://open.spotify.com.evil.example/track/x")).toBeNull();
     expect(detectPlatform("ftp://youtube.com/x")).toBeNull();
     expect(detectPlatform("hello world")).toBeNull();
     expect(detectPlatform("")).toBeNull();
@@ -87,6 +91,19 @@ describe("batch URL parsing", () => {
     expect(unique).toHaveLength(2);
     expect(duplicates).toBe(3);
     expect(urlKey("https://www.youtube.com/shorts/ccccccccccc")).toBe("youtube:ccccccccccc");
+  });
+  it("finds and deduplicates Spotify links", () => {
+    const text = `Album: https://open.spotify.com/intl-it/album/6N9PS4QXF1D0OWPk0Sxtb4?si=abc
+      song spotify:track:4PTG3Z6ehGkBFwjybzWkR8 and again open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8.`;
+    const urls = extractUrls(text);
+    expect(urls).toEqual([
+      "https://open.spotify.com/intl-it/album/6N9PS4QXF1D0OWPk0Sxtb4?si=abc",
+      "spotify:track:4PTG3Z6ehGkBFwjybzWkR8",
+      "https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8",
+    ]);
+    const { unique, duplicates } = dedupeUrls(urls);
+    expect(unique).toHaveLength(2);
+    expect(duplicates).toBe(1);
   });
 });
 
@@ -153,6 +170,11 @@ describe("options", () => {
     expect(options.qualityMode).toBe("best");
     expect(options.audioBitrate).toBe(256);
     expect(options.container).toBe("mkv");
+  });
+  it("forces audio for Spotify links", () => {
+    const video = { mediaType: "video" } as DownloadOptions;
+    expect(optionsForPlatform(video, "spotify").mediaType).toBe("audio");
+    expect(optionsForPlatform(video, "youtube")).toBe(video);
   });
   it("classifies job states", () => {
     expect(isRunning("merging")).toBe(true);

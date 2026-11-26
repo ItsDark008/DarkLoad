@@ -25,11 +25,17 @@ use crate::platform::{self, Platform};
 use crate::process;
 use crate::security::{self, DuplicatePolicy, Placement};
 use crate::settings::{MediaType, PartialFilePolicy, Settings};
+use crate::spotify::{self, SpotifyClient, SpotifyTrack};
 use crate::storage::{HistoryEntry, Storage};
 use crate::tiktok::{GuestPlayer, GuestVideo};
 
 pub const PROGRESS_FILE: &str = ".darkload-ffmpeg-progress.txt";
 const EMIT_INTERVAL: Duration = Duration::from_millis(250);
+/// File name for Spotify songs when the user kept the default template.
+const SOURCE_NOTE: &str = "Audio source on YouTube:";
+const MATCH_NOTE: &str =
+    "Matched automatically by title, artist and duration. Check the source if the song sounds different.";
+const SPOTIFY_TEMPLATE: &str = "%(artist).80B - %(title).150B.%(ext)s";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -96,6 +102,9 @@ pub struct DownloadRequest {
     pub thumbnail_local: Option<String>,
     #[serde(default)]
     pub duration: Option<f64>,
+    /// Spotify song metadata, including the matched YouTube source once known.
+    #[serde(default)]
+    pub spotify: Option<SpotifyTrack>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -233,6 +242,7 @@ pub struct QueueManager {
     sink: Arc<dyn EventSink>,
     shutdown: CancellationToken,
     guest_player: RwLock<Option<Arc<GuestPlayer>>>,
+    spotify: RwLock<Option<Arc<SpotifyClient>>>,
 }
 
 fn now_ms() -> i64 {
@@ -266,6 +276,7 @@ impl QueueManager {
             sink,
             shutdown: CancellationToken::new(),
             guest_player: RwLock::new(None),
+            spotify: RwLock::new(None),
         })
     }
 
@@ -407,6 +418,25 @@ impl QueueManager {
         for mut request in requests {
             let detected = platform::detect(&request.url)?;
             request.url = detected.url.clone();
+            if detected.platform == Platform::Spotify {
+                if detected.kind != platform::UrlKind::Track {
+                    return Err(AppError::invalid_input(
+                        "This Spotify link is an album or playlist. Add its songs from the Downloader or Batch page.",
+                    ));
+                }
+                // Spotify links only ever produce audio files.
+                request.options.media_type = MediaType::Audio;
+                if let Some(track) = request.spotify.as_mut() {
+                    track.validate()?;
+                    if Some(&track.id) != detected.id.as_ref() {
+                        return Err(AppError::invalid_input(
+                            "The Spotify metadata does not belong to this link.",
+                        ));
+                    }
+                }
+            } else {
+                request.spotify = None;
+            }
             request.options.validate()?;
             let dir = request
                 .output_dir
@@ -621,6 +651,88 @@ impl QueueManager {
         *self.guest_player.write().unwrap_or_else(|e| e.into_inner()) = Some(player);
     }
 
+    pub(crate) fn set_spotify_client(&self, client: Arc<SpotifyClient>) {
+        *self.spotify.write().unwrap_or_else(|e| e.into_inner()) = Some(client);
+    }
+
+    /// Matches a Spotify song on YouTube and prepares the tagged media information.
+    async fn prepare_spotify(
+        &self,
+        id: &str,
+        job: &Job,
+        tools: &extractor::ToolPaths,
+        settings: &Settings,
+        token: &CancellationToken,
+    ) -> AppResult<(SelectionPlan, tempfile::NamedTempFile)> {
+        let client = self
+            .spotify
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or_else(|| AppError::internal("Spotify support is not available."))?;
+        let creds = spotify::Credentials::from_settings(settings);
+        let track = match job.request.spotify.clone() {
+            Some(track) => track,
+            None => {
+                let detected = platform::detect(&job.request.url)?;
+                client
+                    .track(detected.id.as_deref().unwrap_or_default(), creds.as_ref())
+                    .await?
+            }
+        };
+        let matched_before = track.source_url.is_some();
+        let mut prepared = spotify::prepare(
+            &client,
+            tools,
+            settings.into(),
+            track,
+            creds.as_ref(),
+            token,
+        )
+        .await?;
+        if prepared.media.thumbnail_local.is_none() {
+            if let Some(url) = prepared.media.thumbnail.clone() {
+                prepared.media.thumbnail_local =
+                    crate::thumbnails::cache(self.deps.http(), &self.paths.thumbnails_dir, &url)
+                        .await
+                        .map(|p| p.to_string_lossy().into_owned());
+            }
+        }
+        let plan = formats::plan(
+            &prepared.media.formats,
+            prepared.media.duration,
+            &job.request.options,
+        )?;
+        let mut info = tempfile::NamedTempFile::new()?;
+        serde_json::to_writer(info.as_file_mut(), &prepared.info)?;
+        let source_note = format!(
+            "{SOURCE_NOTE} {} — {} ({})",
+            prepared.track.source_title.as_deref().unwrap_or("video"),
+            prepared
+                .track
+                .source_channel
+                .as_deref()
+                .unwrap_or("unknown channel"),
+            prepared.track.source_url.as_deref().unwrap_or_default(),
+        );
+        self.update(id, true, |job| {
+            apply_media(job, &prepared.media);
+            job.notes
+                .retain(|n| !n.starts_with(SOURCE_NOTE) && n != MATCH_NOTE);
+            job.notes.push(source_note);
+            if !matched_before {
+                job.notes.push(MATCH_NOTE.into());
+            }
+            apply_plan_notes(job, &plan);
+            job.notes.dedup();
+            job.plan = Some(plan.clone());
+            job.request.spotify = Some(prepared.track.clone());
+            job.state = JobState::Downloading;
+        });
+        self.cache.put(&job.request.url, None, prepared.media);
+        Ok((plan, info))
+    }
+
     async fn execute(&self, id: &str, token: &CancellationToken) -> AppResult<Outcome> {
         let result = self.execute_inner(id, token, None).await;
         let Err(error) = &result else {
@@ -666,8 +778,30 @@ impl QueueManager {
         let settings = self.settings();
         let tools = self.deps.tool_paths(self.paths.ytdlp_cache.clone()).await?;
 
+        // Spotify songs are matched on YouTube and downloaded from tagged media information.
+        let spotify_files = if job.platform == Platform::Spotify {
+            Some(
+                self.prepare_spotify(id, &job, &tools, &settings, token)
+                    .await?,
+            )
+        } else {
+            None
+        };
+        let mut options = job.request.options.clone();
+        if spotify_files.is_some()
+            && options.filename_template.is_none()
+            && (settings.filename_template.trim().is_empty()
+                || settings.filename_template == crate::settings::DEFAULT_TEMPLATE)
+        {
+            options.filename_template = Some(SPOTIFY_TEMPLATE.to_string());
+        }
+
         // Resolve formats when the job was added without a fresh analysis.
-        let plan = match job.plan.clone().filter(|_| guest.is_none()) {
+        let plan = match spotify_files
+            .as_ref()
+            .map(|(plan, _)| plan.clone())
+            .or_else(|| job.plan.clone().filter(|_| guest.is_none()))
+        {
             Some(plan) => plan,
             None => {
                 let detected = platform::detect(&job.request.url)?;
@@ -746,13 +880,16 @@ impl QueueManager {
             let spec = DownloadSpec {
                 url: &job.request.url,
                 playlist_item: job.request.playlist_item,
-                options: &job.request.options,
+                options: &options,
                 plan: &plan,
                 settings: &settings,
                 work_dir: &work_dir,
                 ffmpeg_progress_file: Some(&progress_file),
                 cookies_file: guest_files.as_ref().map(|files| files.cookies_path()),
-                info_file: guest_files.as_ref().map(|files| files.info_path()),
+                info_file: guest_files
+                    .as_ref()
+                    .map(|files| files.info_path())
+                    .or_else(|| spotify_files.as_ref().map(|(_, info)| info.path())),
             };
             let args: Vec<OsString> = download::build_args(&tools, &spec);
             self.update(id, true, |job| {
@@ -1387,6 +1524,7 @@ mod tests {
             thumbnail: None,
             thumbnail_local: None,
             duration: Some(10.0),
+            spotify: None,
         }
     }
 
@@ -1725,6 +1863,7 @@ mod tests {
             subtitles: vec![],
             playlist_id: None,
             playlist_item: None,
+            spotify: None,
         };
         for i in 0..250 {
             cache.put(&format!("u{i}"), None, media.clone());

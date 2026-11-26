@@ -16,6 +16,8 @@ pub enum Platform {
     Youtube,
     Tiktok,
     Instagram,
+    /// Spotify supplies track metadata only; the audio is matched on YouTube.
+    Spotify,
 }
 
 impl Platform {
@@ -24,6 +26,7 @@ impl Platform {
             Platform::Youtube => "youtube",
             Platform::Tiktok => "tiktok",
             Platform::Instagram => "instagram",
+            Platform::Spotify => "spotify",
         }
     }
 
@@ -32,6 +35,7 @@ impl Platform {
             Platform::Youtube => "YouTube",
             Platform::Tiktok => "TikTok",
             Platform::Instagram => "Instagram",
+            Platform::Spotify => "Spotify",
         }
     }
 
@@ -40,6 +44,7 @@ impl Platform {
             "youtube" => Some(Platform::Youtube),
             "tiktok" => Some(Platform::Tiktok),
             "instagram" => Some(Platform::Instagram),
+            "spotify" => Some(Platform::Spotify),
             _ => None,
         }
     }
@@ -54,6 +59,8 @@ pub enum UrlKind {
     Playlist,
     Reel,
     Post,
+    Track,
+    Album,
     /// A shortened link whose target is resolved by the extractor.
     Shortlink,
 }
@@ -140,6 +147,9 @@ fn parse_input(input: &str) -> AppResult<Url> {
 
 /// Validates a URL and identifies its platform and content type.
 pub fn detect(input: &str) -> AppResult<DetectedUrl> {
+    if let Some(uri) = input.trim().strip_prefix("spotify:") {
+        return detect_spotify_uri(uri);
+    }
     let url = parse_input(input)?;
     let host = url
         .host_str()
@@ -159,8 +169,14 @@ pub fn detect(input: &str) -> AppResult<DetectedUrl> {
     if host_matches(host, "instagram.com") || host == "instagr.am" {
         return detect_instagram(&url);
     }
+    if host == "open.spotify.com" || host == "play.spotify.com" {
+        return detect_spotify(&url);
+    }
+    if host == "spotify.link" || host == "spotify.app.link" {
+        return detect_spotify_shortlink(&url, host);
+    }
     Err(unsupported(
-        "This website is not supported. DarkLoad supports YouTube, TikTok and Instagram links.",
+        "This website is not supported. DarkLoad supports YouTube, TikTok, Instagram and Spotify links.",
     ))
 }
 
@@ -379,6 +395,85 @@ fn detect_instagram(url: &Url) -> AppResult<DetectedUrl> {
     })
 }
 
+/// Spotify catalog IDs are 22 base-62 characters.
+pub fn is_spotify_id(id: &str) -> bool {
+    id.len() == 22 && id.bytes().all(|b| b.is_ascii_alphanumeric())
+}
+
+pub fn spotify_url(kind: UrlKind, id: &str) -> String {
+    let path = match kind {
+        UrlKind::Album => "album",
+        UrlKind::Playlist => "playlist",
+        _ => "track",
+    };
+    format!("https://open.spotify.com/{path}/{id}")
+}
+
+fn spotify_entity(kind: &str, id: &str) -> AppResult<DetectedUrl> {
+    let kind = match kind {
+        "track" => UrlKind::Track,
+        "album" => UrlKind::Album,
+        "playlist" => UrlKind::Playlist,
+        "artist" | "show" | "episode" | "user" | "collection" => {
+            return Err(unsupported(
+                "Only links to Spotify songs, albums and playlists are supported.",
+            ))
+        }
+        _ => return Err(unsupported("This Spotify page is not supported.")),
+    };
+    if !is_spotify_id(id) {
+        return Err(invalid("The Spotify ID in this link is not valid."));
+    }
+    Ok(DetectedUrl {
+        platform: Platform::Spotify,
+        kind,
+        url: spotify_url(kind, id),
+        id: Some(id.to_string()),
+        playlist_id: None,
+    })
+}
+
+fn detect_spotify(url: &Url) -> AppResult<DetectedUrl> {
+    let mut segments = path_segments(url);
+    // Localized links (/intl-it/track/…) and embeds (/embed/track/…) carry a leading segment.
+    if segments
+        .first()
+        .is_some_and(|s| s.starts_with("intl-") || s == "embed")
+    {
+        segments.remove(0);
+    }
+    match segments.as_slice() {
+        [kind, id, ..] => spotify_entity(kind, id),
+        _ => Err(invalid(
+            "Open a specific Spotify song, album or playlist and copy its link.",
+        )),
+    }
+}
+
+/// Parses `spotify:track:ID` style URIs copied from the desktop app.
+fn detect_spotify_uri(uri: &str) -> AppResult<DetectedUrl> {
+    if uri.len() > 64 {
+        return Err(invalid("This Spotify link is not valid."));
+    }
+    match uri.split(':').collect::<Vec<_>>().as_slice() {
+        [kind, id] => spotify_entity(kind, id),
+        _ => Err(invalid("This Spotify link is not valid.")),
+    }
+}
+
+fn detect_spotify_shortlink(url: &Url, host: &str) -> AppResult<DetectedUrl> {
+    match path_segments(url).as_slice() {
+        [code] if is_shortcode(code) => Ok(DetectedUrl {
+            platform: Platform::Spotify,
+            kind: UrlKind::Shortlink,
+            url: format!("https://{host}/{code}"),
+            id: None,
+            playlist_id: None,
+        }),
+        _ => Err(invalid("This Spotify short link is not valid.")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -514,6 +609,59 @@ mod tests {
         );
         assert_eq!(
             code("https://www.instagram.com/someone/"),
+            ErrorCode::UnsupportedUrl
+        );
+    }
+
+    #[test]
+    fn spotify_urls() {
+        let t = ok("https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8?si=abc123");
+        assert_eq!(t.platform, Platform::Spotify);
+        assert_eq!(t.kind, UrlKind::Track);
+        assert_eq!(
+            t.url,
+            "https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8"
+        );
+        assert_eq!(t.id.as_deref(), Some("4PTG3Z6ehGkBFwjybzWkR8"));
+        assert_eq!(
+            ok("open.spotify.com/intl-it/album/6N9PS4QXF1D0OWPk0Sxtb4").kind,
+            UrlKind::Album
+        );
+        assert_eq!(
+            ok("https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M").url,
+            "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+        );
+        assert_eq!(
+            ok("spotify:track:4PTG3Z6ehGkBFwjybzWkR8").url,
+            "https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8"
+        );
+        let short = ok("https://spotify.link/AbCdEf123");
+        assert_eq!(short.kind, UrlKind::Shortlink);
+        assert_eq!(short.url, "https://spotify.link/AbCdEf123");
+    }
+
+    #[test]
+    fn spotify_rejections() {
+        assert_eq!(
+            code("https://open.spotify.com/artist/0gxyHStUsqpMadRV0Di1Qt"),
+            ErrorCode::UnsupportedUrl
+        );
+        assert_eq!(
+            code("https://open.spotify.com/episode/0gxyHStUsqpMadRV0Di1Qt"),
+            ErrorCode::UnsupportedUrl
+        );
+        assert_eq!(
+            code("https://open.spotify.com/track/short"),
+            ErrorCode::InvalidUrl
+        );
+        assert_eq!(
+            code("https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWk-8"),
+            ErrorCode::InvalidUrl
+        );
+        assert_eq!(code("https://open.spotify.com/"), ErrorCode::InvalidUrl);
+        assert_eq!(code("spotify:track:--exec"), ErrorCode::InvalidUrl);
+        assert_eq!(
+            code("https://spotify.com.evil.example/track/4PTG3Z6ehGkBFwjybzWkR8"),
             ErrorCode::UnsupportedUrl
         );
     }

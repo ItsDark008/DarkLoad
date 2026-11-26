@@ -11,6 +11,7 @@ pub const DEPS_PROGRESS: &str = "deps://progress";
 pub const DEPS_CHANGED: &str = "deps://changed";
 pub const SETTINGS_CHANGED: &str = "settings://changed";
 pub const UPDATER_PROGRESS: &str = "updater://progress";
+pub const UPDATER_STATUS: &str = "updater://status";
 pub const HISTORY_CHANGED: &str = "history://changed";
 
 pub struct TauriSink {

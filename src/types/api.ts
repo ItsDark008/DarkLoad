@@ -1,7 +1,7 @@
 // Types mirroring the Rust backend's serialized structures (serde camelCase).
 
-export type Platform = "youtube" | "tiktok" | "instagram";
-export type UrlKind = "video" | "short" | "live" | "playlist" | "reel" | "post" | "shortlink";
+export type Platform = "youtube" | "tiktok" | "instagram" | "spotify";
+export type UrlKind = "video" | "short" | "live" | "playlist" | "reel" | "post" | "track" | "album" | "shortlink";
 
 export interface DetectedUrl {
   platform: Platform;
@@ -96,6 +96,25 @@ export interface SubtitleTrack {
   automatic: boolean;
 }
 
+/** Song metadata from Spotify and the YouTube upload matched as its audio source. */
+export interface SpotifyTrack {
+  id: string;
+  title: string;
+  artists: string[];
+  album: string | null;
+  albumArtist: string | null;
+  trackNumber: number | null;
+  releaseDate: string | null;
+  duration: number | null;
+  cover: string | null;
+  isrc: string | null;
+  explicit: boolean;
+  playable: boolean;
+  sourceUrl: string | null;
+  sourceTitle: string | null;
+  sourceChannel: string | null;
+}
+
 export interface MediaInfo {
   id: string;
   url: string;
@@ -114,6 +133,7 @@ export interface MediaInfo {
   subtitles: SubtitleTrack[];
   playlistId: string | null;
   playlistItem: number | null;
+  spotify?: SpotifyTrack | null;
 }
 
 export interface PlaylistEntry {
@@ -127,6 +147,7 @@ export interface PlaylistEntry {
   playlistItem: number | null;
   available: boolean;
   media: MediaInfo | null;
+  spotify?: SpotifyTrack | null;
 }
 
 export interface PlaylistInfo {
@@ -137,6 +158,7 @@ export interface PlaylistInfo {
   platform: Platform;
   thumbnail: string | null;
   entries: PlaylistEntry[];
+  notice?: string | null;
 }
 
 export type Analysis = ({ kind: "media" } & MediaInfo) | ({ kind: "playlist" } & PlaylistInfo);
@@ -210,6 +232,7 @@ export interface DownloadRequest {
   thumbnail?: string | null;
   thumbnailLocal?: string | null;
   duration?: number | null;
+  spotify?: SpotifyTrack | null;
 }
 
 export type JobState =
@@ -345,11 +368,13 @@ export interface Settings {
   sidebarBehavior: "remember" | "auto";
   density: "comfortable" | "compact";
   animations: boolean;
-  autoCheckUpdates: boolean;
+  updateMode: UpdateMode;
   clipboardMonitoring: boolean;
   notifications: boolean;
   allowSystemBinaries: boolean;
   preferIpv4: boolean;
+  spotifyClientId: string;
+  spotifyClientSecret: string;
 }
 
 export type DepId = "yt-dlp" | "ffmpeg" | "ffprobe" | "deno";
@@ -390,12 +415,20 @@ export interface AppInfo {
   changelog: string;
 }
 
+export type UpdateMode = "auto" | "notify" | "off";
+
 export interface UpdateInfo {
   available: boolean;
   currentVersion: string;
   version: string | null;
   notes: string | null;
   date: string | null;
+  /** A check has completed since DarkLoad started. */
+  checked: boolean;
+  /** The new version is downloaded, verified and ready to install. */
+  ready: boolean;
+  /** This copy was installed with an installer that can update it in place (not portable). */
+  installable: boolean;
 }
 
 export interface DeleteResult {

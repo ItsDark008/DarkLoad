@@ -112,7 +112,7 @@ pub struct Settings {
     pub animations: bool,
 
     // Updates
-    pub auto_check_updates: bool,
+    pub update_mode: crate::updater::UpdateMode,
 
     // Privacy
     pub clipboard_monitoring: bool,
@@ -124,6 +124,11 @@ pub struct Settings {
     // Network
     /// Connect over IPv4 only. Avoids long stalls on networks with broken IPv6 routes.
     pub prefer_ipv4: bool,
+
+    // Spotify
+    /// Optional Spotify Web API application credentials, used to read long playlists in full.
+    pub spotify_client_id: String,
+    pub spotify_client_secret: String,
 }
 
 impl Default for Settings {
@@ -165,11 +170,13 @@ impl Default for Settings {
             sidebar_behavior: SidebarBehavior::Remember,
             density: Density::Comfortable,
             animations: true,
-            auto_check_updates: true,
+            update_mode: crate::updater::UpdateMode::Auto,
             clipboard_monitoring: false,
             notifications: true,
             allow_system_binaries: false,
             prefer_ipv4: true,
+            spotify_client_id: String::new(),
+            spotify_client_secret: String::new(),
         }
     }
 }
@@ -244,6 +251,20 @@ impl Settings {
             }
         }
         validate_filename_template(&self.filename_template)?;
+        let credential_ok = |s: &str| s.len() <= 64 && s.bytes().all(|b| b.is_ascii_alphanumeric());
+        if !credential_ok(self.spotify_client_id.trim())
+            || !credential_ok(self.spotify_client_secret.trim())
+        {
+            return Err(AppError::invalid_input(
+                "The Spotify Client ID and Client Secret contain only letters and digits.",
+            ));
+        }
+        if self.spotify_client_id.trim().is_empty() != self.spotify_client_secret.trim().is_empty()
+        {
+            return Err(AppError::invalid_input(
+                "Enter both the Spotify Client ID and the Client Secret, or neither.",
+            ));
+        }
         if !is_hex_color(&self.accent_color) {
             return Err(AppError::invalid_input(
                 "The accent color must be a hex color such as #8B5CF6.",

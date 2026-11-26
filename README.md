@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A fast, privacy-focused desktop downloader for public YouTube, TikTok and Instagram media,<br>
+  A fast, privacy-focused desktop downloader for public YouTube, TikTok and Instagram media and Spotify songs,<br>
   at the highest quality the source actually offers.
 </p>
 
@@ -68,8 +68,17 @@ It is a native desktop application built with Tauri and Rust, with a pure-black 
 | YouTube | Videos, Shorts, playlists, archived livestreams, audio extraction |
 | TikTok | Public videos, standard and shortened links (`vm.`/`vt.` and `/t/`), audio extraction |
 | Instagram | Public reels, video posts and video carousels, audio extraction |
+| Spotify | Songs, albums and playlists, saved as audio matched on YouTube |
 
 DarkLoad can download public media without an account when the platform serves it to guests. If TikTok requests sign-in, DarkLoad also tries its public embedded player in an isolated guest session. Download only content you own or are authorized to save.
+
+### Spotify
+
+Spotify's audio is protected by DRM, and DarkLoad does not download it. For a Spotify link, DarkLoad reads the song's metadata from Spotify, searches YouTube for the same recording (comparing title, artists and duration and avoiding live versions, covers and remixes), downloads that audio and writes Spotify's title, artists, album, track number, release date and cover art into the file. The queue shows which YouTube upload was used. If no upload matches reliably, the song fails with a clear message instead of downloading something else.
+
+- **Quality** is what YouTube offers, usually Opus or AAC at about 130–160 kbps. Converting to FLAC, WAV or 320 kbps MP3 does not restore detail.
+- **Without an account**, metadata comes from Spotify's public player, which lists at most 100 songs of an album or playlist. To read longer playlists, create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and enter its Client ID and Client Secret in Settings → Downloads. Spotify does not share its own editorial playlists with third-party apps, so those always use the public player.
+- With the default filename template, songs are saved as `Artist - Title`.
 
 ## Installation
 

@@ -9,7 +9,7 @@ import { useHistorySignal } from "@/stores/signals";
 import { useQueue } from "@/stores/queue";
 import { lighten, oledPalette, readableTextOn } from "@/lib/utils";
 import { urlKey } from "@/lib/urls";
-import type { DependencyStatus, InstallProgress, Job, Settings } from "@/types/api";
+import type { DependencyStatus, InstallProgress, Job, Settings, UpdateInfo } from "@/types/api";
 
 /** Subscribes to backend events and loads the initial queue. */
 export function useBackendEvents() {
@@ -132,17 +132,42 @@ export function useCloseGuard(confirmEnabled: boolean, ask: () => Promise<boolea
 }
 
 /** One automatic update check per launch, when enabled. */
-export function useStartupUpdateCheck(enabled: boolean | undefined, configured: boolean | undefined) {
-  const done = useRef(false);
+/** Restarts DarkLoad into the downloaded update, reporting failures. */
+export function installUpdateNow() {
+  void api.installAppUpdate().catch((e: { message?: string }) => toast.error("Update failed", { description: e.message }));
+}
+
+/**
+ * Follows the background updater: shows the last known status at startup and announces a new
+ * version once per version, either as ready to install or as available to download.
+ */
+export function useUpdateNotifications(configured: boolean | undefined) {
+  const announced = useRef<string | null>(null);
   useEffect(() => {
-    if (done.current || !enabled || !configured) return;
-    done.current = true;
+    if (!configured) return;
+    const show = (u: UpdateInfo) => {
+      useApp.getState().setUpdate(u);
+      if (!u.available || !u.version) return;
+      const key = `${u.version}:${u.ready}`;
+      if (announced.current === key) return;
+      const view = () => useApp.getState().navigate("settings", "updates");
+      if (u.ready) {
+        announced.current = key;
+        toast(`DarkLoad ${u.version} is ready`, {
+          description: "It installs when you close DarkLoad, or restart now.",
+          duration: 15000,
+          action: { label: "Restart now", onClick: installUpdateNow },
+        });
+      } else if (useApp.getState().settings?.updateMode !== "auto" || !u.installable) {
+        announced.current = key;
+        toast(`DarkLoad ${u.version} is available`, { action: { label: "View", onClick: view } });
+      }
+    };
+    const unlisten = listen<UpdateInfo>(events.updaterStatus, (e) => show(e.payload));
     api
-      .checkAppUpdate()
-      .then((u) => {
-        useApp.getState().setUpdate(u);
-        if (u.available) toast(`DarkLoad ${u.version} is available`, { action: { label: "View", onClick: () => useApp.getState().navigate("settings", "updates") } });
-      })
+      .checkAppUpdate(false)
+      .then(show)
       .catch(() => undefined);
-  }, [enabled, configured]);
+    return () => void unlisten.then((fn) => fn()).catch(() => undefined);
+  }, [configured]);
 }

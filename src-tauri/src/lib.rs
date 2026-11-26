@@ -13,6 +13,7 @@ pub mod process;
 pub mod queue;
 pub mod security;
 pub mod settings;
+mod spotify;
 pub mod storage;
 pub mod thumbnails;
 mod tiktok;
@@ -143,6 +144,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     );
     let tiktok_guest = Arc::new(tiktok::GuestPlayer::new(handle.clone())?);
     queue.set_guest_player(tiktok_guest.clone());
+    let spotify = Arc::new(spotify::SpotifyClient::new()?);
+    queue.set_spotify_client(spotify.clone());
+    let updates = Arc::new(updater::UpdateService::new());
+    updates.start(handle.clone(), settings.clone());
 
     app.manage(AppState {
         storage,
@@ -154,6 +159,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         analyses: Mutex::new(HashMap::new()),
         thumbnail_slots: Semaphore::new(6),
         tiktok_guest,
+        spotify,
+        updates,
     });
 
     let main_window = app
@@ -251,6 +258,15 @@ pub fn run() {
             if let Some(state) = handle.try_state::<AppState>() {
                 let queue = state.queue.clone();
                 tauri::async_runtime::block_on(async move { queue.shutdown().await });
+                let mode = state
+                    .settings
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .update_mode;
+                if mode == updater::UpdateMode::Auto {
+                    // A downloaded update is installed as DarkLoad closes; it does not reopen.
+                    state.updates.install_on_exit();
+                }
             }
         }
     });

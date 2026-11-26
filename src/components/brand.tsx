@@ -45,6 +45,13 @@ export function PlatformIcon({ platform, className }: { platform: Platform | nul
           <circle cx="17.1" cy="6.9" r="0.9" fill="currentColor" stroke="none" />
         </svg>
       );
+    case "spotify":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M7.5 9.6c3-1 6.4-.7 9 .8M8.2 12.5c2.4-.7 5-.5 7.1.7M8.9 15.2c1.8-.5 3.7-.3 5.3.5" strokeLinecap="round" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>

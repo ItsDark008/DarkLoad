@@ -16,6 +16,8 @@ interface Props {
   /** Hides global settings (speed limit, duplicates) in per-item editors. */
   showGlobal?: boolean;
   defaultAdvancedOpen?: boolean;
+  /** The source only provides audio (Spotify songs). */
+  audioOnly?: boolean;
 }
 
 function Field({ label, htmlFor, children, hint, className }: { label: string; htmlFor?: string; children: React.ReactNode; hint?: string; className?: string }) {
@@ -55,7 +57,7 @@ const AUDIO_CODECS: SelectOption<AudioCodecPreference>[] = [
   { value: "aac", label: "AAC" },
 ];
 
-export function DownloadOptionsForm({ options, onChange, summary, showGlobal = true, defaultAdvancedOpen = false }: Props) {
+export function DownloadOptionsForm({ options, onChange, summary, showGlobal = true, defaultAdvancedOpen = false, audioOnly = false }: Props) {
   const settings = useApp((s) => s.settings);
   const updateSettings = useApp((s) => s.updateSettings);
   const [advanced, setAdvanced] = useState(defaultAdvancedOpen);
@@ -84,7 +86,7 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
         value={options.mediaType}
         onValueChange={(mediaType) => onChange({ mediaType })}
         options={[
-          { value: "video", label: "Video", icon: <Film /> },
+          { value: "video", label: "Video", icon: <Film />, disabled: audioOnly },
           { value: "audio", label: "Audio", icon: <Music />, disabled: summary ? !summary.hasAudio : false },
         ]}
         className="w-full"

@@ -52,6 +52,9 @@ pub struct MediaInfo {
     pub playlist_id: Option<String>,
     /// Index inside a multi-item post (Instagram carousels).
     pub playlist_item: Option<u32>,
+    /// Song metadata and matched source for Spotify links.
+    #[serde(default)]
+    pub spotify: Option<crate::spotify::SpotifyTrack>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -68,6 +71,9 @@ pub struct PlaylistEntry {
     pub available: bool,
     /// Full media details, present when the extractor resolved them (carousels).
     pub media: Option<Box<MediaInfo>>,
+    /// Song metadata for Spotify albums and playlists.
+    #[serde(default)]
+    pub spotify: Option<crate::spotify::SpotifyTrack>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -80,6 +86,9 @@ pub struct PlaylistInfo {
     pub platform: Platform,
     pub thumbnail: Option<String>,
     pub entries: Vec<PlaylistEntry>,
+    /// Limitation the interface should explain, for example a truncated list.
+    #[serde(default)]
+    pub notice: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -142,6 +151,23 @@ pub async fn analyze(
     net: NetOptions,
     cancel: &CancellationToken,
 ) -> AppResult<Analysis> {
+    let mode = if detected.kind == UrlKind::Playlist {
+        "--flat-playlist"
+    } else {
+        "--no-playlist"
+    };
+    let json = dump_json(tools, &detected.url, net, cancel, &[mode]).await?;
+    parse_analysis(&json, detected)
+}
+
+/// Runs yt-dlp in JSON mode for a validated URL or search query and returns its raw output.
+pub async fn dump_json(
+    tools: &ToolPaths,
+    target: &str,
+    net: NetOptions,
+    cancel: &CancellationToken,
+    extra: &[&str],
+) -> AppResult<Value> {
     let socket_timeout = net.socket_timeout;
     let mut args = base_args(tools, net);
     args.extend([
@@ -149,13 +175,9 @@ pub async fn analyze(
         "--no-progress".into(),
         "--no-warnings".into(),
     ]);
-    if detected.kind == UrlKind::Playlist {
-        args.push("--flat-playlist".into());
-    } else {
-        args.push("--no-playlist".into());
-    }
+    args.extend(extra.iter().map(OsString::from));
     args.push("--".into());
-    args.push(detected.url.clone().into());
+    args.push(target.into());
 
     let timeout = Duration::from_secs(u64::from(socket_timeout).max(30) * 6);
     let finished = process::run(
@@ -171,14 +193,13 @@ pub async fn analyze(
     if !finished.success {
         return Err(classify_error(&finished.stderr_tail));
     }
-    let json: Value = serde_json::from_str(finished.stdout.trim()).map_err(|e| {
+    serde_json::from_str(finished.stdout.trim()).map_err(|e| {
         AppError::new(
             ErrorCode::ProcessFailed,
             "The extractor returned data DarkLoad could not read.",
         )
         .with_detail(e.to_string())
-    })?;
-    parse_analysis(&json, detected)
+    })
 }
 
 fn str_field(v: &Value, key: &str) -> Option<String> {
@@ -373,6 +394,7 @@ fn parse_media(v: &Value, detected: &DetectedUrl, fallback_url: &str) -> AppResu
         subtitles: parse_subtitles(v),
         playlist_id: detected.playlist_id.clone(),
         playlist_item: None,
+        spotify: None,
     })
 }
 
@@ -424,6 +446,7 @@ pub fn parse_analysis(v: &Value, detected: &DetectedUrl) -> AppResult<Analysis> 
                         playlist_item: Some(index),
                         available: true,
                         media: Some(Box::new(media)),
+                        spotify: None,
                     });
                 }
                 Err(_) => continue, // Image-only carousel items are skipped.
@@ -450,6 +473,7 @@ pub fn parse_analysis(v: &Value, detected: &DetectedUrl) -> AppResult<Analysis> 
             playlist_item: None,
             available,
             media: None,
+            spotify: None,
         });
     }
     if entries.is_empty() {
@@ -471,6 +495,7 @@ pub fn parse_analysis(v: &Value, detected: &DetectedUrl) -> AppResult<Analysis> 
         platform: detected.platform,
         thumbnail: pick_thumbnail(v).or_else(|| entries.iter().find_map(|e| e.thumbnail.clone())),
         entries,
+        notice: None,
     }))
 }
 
