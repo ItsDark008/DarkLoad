@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-27
+
 ### Added
 
 - Spotify songs, albums and playlists (`open.spotify.com` links, `spotify:` URIs and `spotify.link` short links). DarkLoad reads the song metadata from Spotify, finds the same recording on YouTube by title, artist and duration, downloads that audio and tags the file with Spotify's title, artists, album, track number, release date and cover. Spotify's own DRM-protected audio is never downloaded.
