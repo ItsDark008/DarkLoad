@@ -68,7 +68,13 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Build test helpers
-        run: cargo build --examples --locked
+        shell: bash
+        run: |
+          # Ask Cargo where it placed the fake extractor used by the queue tests.
+          helper=$(cargo build --examples --locked --message-format=json             | jq -r 'select(.reason == "compiler-artifact" and .target.name == "fake_ytdlp") | .executable' | tail -n 1)
+          test -n "$helper" && test -f "$helper"
+          echo "Test helper: $helper"
+          echo "DARKLOAD_FAKE_YTDLP=$helper" >> "$GITHUB_ENV"
       - name: Tests
         run: cargo test --locked
 

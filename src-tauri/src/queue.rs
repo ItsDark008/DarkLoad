@@ -1259,8 +1259,11 @@ mod tests {
     }
 
     fn fake_tool() -> Option<PathBuf> {
-        // Built by `cargo build --examples` (CI) or `cargo test`. Search the profile folders
-        // above the test binary, since their layout differs between Cargo versions.
+        // CI passes the exact path reported by Cargo. Locally, `cargo test` builds examples
+        // next to the profile folder above the test binary.
+        if let Some(path) = std::env::var_os("DARKLOAD_FAKE_YTDLP").map(PathBuf::from) {
+            return path.is_file().then_some(path);
+        }
         let name = format!("fake_ytdlp{}", std::env::consts::EXE_SUFFIX);
         let exe = std::env::current_exe().ok()?;
         exe.ancestors()
@@ -1278,7 +1281,7 @@ mod tests {
         std::fs::create_dir_all(&bin).unwrap();
         if install_tools {
             let fake =
-                fake_tool().expect("fake_ytdlp example must be built (cargo test builds examples)");
+                fake_tool().expect("fake_ytdlp example not found: run `cargo build --examples` or set DARKLOAD_FAKE_YTDLP");
             for id in [DepId::YtDlp, DepId::Ffmpeg, DepId::Ffprobe] {
                 std::fs::copy(&fake, bin.join(id.exe_name())).unwrap();
             }
