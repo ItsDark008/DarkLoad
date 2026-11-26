@@ -163,14 +163,6 @@ pub struct Job {
 }
 
 /// Delivers queue updates to the interface.
-/// Supplies a platform session (Netscape cookie file contents) for connected accounts.
-pub trait CookieProvider: Send + Sync + 'static {
-    fn cookies_for(
-        &self,
-        platform: Platform,
-    ) -> futures_util::future::BoxFuture<'static, Option<String>>;
-}
-
 pub trait EventSink: Send + Sync + 'static {
     fn job_updated(&self, job: &Job);
     fn queue_changed(&self, jobs: &[Job]);
@@ -240,7 +232,6 @@ pub struct QueueManager {
     paths: QueuePaths,
     sink: Arc<dyn EventSink>,
     shutdown: CancellationToken,
-    cookies: RwLock<Option<Arc<dyn CookieProvider>>>,
     guest_player: RwLock<Option<Arc<GuestPlayer>>>,
 }
 
@@ -274,7 +265,6 @@ impl QueueManager {
             paths,
             sink,
             shutdown: CancellationToken::new(),
-            cookies: RwLock::new(None),
             guest_player: RwLock::new(None),
         })
     }
@@ -627,80 +617,43 @@ impl QueueManager {
         }
     }
 
-    /// Connects a source of account sessions (set once the desktop runtime is available).
-    pub fn set_cookie_provider(&self, provider: Arc<dyn CookieProvider>) {
-        *self.cookies.write().unwrap_or_else(|e| e.into_inner()) = Some(provider);
-    }
-
     pub(crate) fn set_guest_player(&self, player: Arc<GuestPlayer>) {
         *self.guest_player.write().unwrap_or_else(|e| e.into_inner()) = Some(player);
     }
 
     async fn execute(&self, id: &str, token: &CancellationToken) -> AppResult<Outcome> {
-        let platform = self
-            .lock()
-            .jobs
-            .iter()
-            .find(|j| j.id == id)
-            .map(|j| j.platform);
-        let provider = self
-            .cookies
+        let result = self.execute_inner(id, token, None).await;
+        let Err(error) = &result else {
+            return result;
+        };
+        if error.code != ErrorCode::LoginRequired {
+            return result;
+        }
+        let player = self
+            .guest_player
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
-        let session = match (provider, platform) {
-            (Some(p), Some(platform)) => p.cookies_for(platform).await,
-            _ => None,
+        let detected = self
+            .lock()
+            .jobs
+            .iter()
+            .find(|job| job.id == id)
+            .and_then(|job| platform::detect(&job.request.url).ok());
+        let (Some(player), Some(detected)) = (player, detected) else {
+            return result;
         };
-        let work_dir = self.paths.jobs_dir.join(id);
-        let cookie_file = match session {
-            Some(text) => Some(crate::accounts::write_cookie_file(&work_dir, &text)?),
-            None => None,
-        };
-        let mut result = self
-            .execute_inner(id, token, cookie_file.as_deref(), None)
-            .await;
-        if let Err(error) = &result {
-            if cookie_file.is_none() && platform == Some(Platform::Tiktok) {
-                let player = self
-                    .guest_player
-                    .read()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clone();
-                let detected = self
-                    .lock()
-                    .jobs
-                    .iter()
-                    .find(|job| job.id == id)
-                    .and_then(|job| platform::detect(&job.request.url).ok());
-                if let (Some(player), Some(detected)) = (player, detected) {
-                    if GuestPlayer::can_try(&detected, error) {
-                        result = match player.resolve(&detected, token).await {
-                            Ok(video) => self.execute_inner(id, token, None, Some(video)).await,
-                            Err(e) => Err(e),
-                        };
-                    }
-                }
-            }
+        if !GuestPlayer::can_try(&detected, error) {
+            return result;
         }
-        // The session file lives only for the duration of the operation.
-        if let Some(file) = &cookie_file {
-            let _ = std::fs::remove_file(file);
-        }
-        match result {
-            Err(e) if e.code == ErrorCode::LoginRequired && cookie_file.is_none() => Err(platform
-                .and_then(crate::accounts::login_hint)
-                .map(|hint| hint.with_detail(e.detail.clone().unwrap_or_default()))
-                .unwrap_or(e)),
-            other => other,
-        }
+        let video = player.resolve(&detected, token).await?;
+        self.execute_inner(id, token, Some(video)).await
     }
 
     async fn execute_inner(
         &self,
         id: &str,
         token: &CancellationToken,
-        cookie_file: Option<&Path>,
         guest: Option<GuestVideo>,
     ) -> AppResult<Outcome> {
         let job = self
@@ -721,8 +674,7 @@ impl QueueManager {
                 let analysis = if let Some(video) = &guest {
                     video.analysis()?
                 } else {
-                    extractor::analyze(&tools, &detected, (&settings).into(), cookie_file, token)
-                        .await?
+                    extractor::analyze(&tools, &detected, (&settings).into(), token).await?
                 };
                 let media = match analysis {
                     Analysis::Media(m) => *m,
@@ -799,10 +751,7 @@ impl QueueManager {
                 settings: &settings,
                 work_dir: &work_dir,
                 ffmpeg_progress_file: Some(&progress_file),
-                cookies_file: guest_files
-                    .as_ref()
-                    .map(|files| files.cookies_path())
-                    .or(cookie_file),
+                cookies_file: guest_files.as_ref().map(|files| files.cookies_path()),
                 info_file: guest_files.as_ref().map(|files| files.info_path()),
             };
             let args: Vec<OsString> = download::build_args(&tools, &spec);
@@ -1278,7 +1227,8 @@ fn check_disk_space(plan: &SelectionPlan, work_dir: &Path, output_dir: &Path) ->
 
 fn is_temporary(name: &str) -> bool {
     name == PROGRESS_FILE
-        || name == crate::accounts::COOKIE_FILE
+        // A job restored from an older build can still contain an account cookie file.
+        || name == ".darkload-cookies.txt"
         || name.ends_with(".part")
         || name.ends_with(".ytdl")
         || name.contains(".part-Frag")
@@ -1786,6 +1736,7 @@ mod tests {
 
     #[test]
     fn temporary_files_are_recognized() {
+        assert!(is_temporary(".darkload-cookies.txt"));
         assert!(is_temporary("video.f137.mp4.part"));
         assert!(is_temporary("video.mp4.ytdl"));
         assert!(is_temporary(PROGRESS_FILE));

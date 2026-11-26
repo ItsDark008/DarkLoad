@@ -1,6 +1,5 @@
 //! DarkLoad desktop backend.
 
-pub mod accounts;
 pub mod commands;
 pub mod converter;
 pub mod dependencies;
@@ -30,21 +29,6 @@ use dependencies::DependencyManager;
 use queue::{AnalysisCache, QueueManager, QueuePaths};
 use settings::Settings;
 use storage::Storage;
-
-/// Bridges connected platform accounts into the download queue.
-struct AccountCookies {
-    app: AppHandle,
-}
-
-impl queue::CookieProvider for AccountCookies {
-    fn cookies_for(
-        &self,
-        platform: platform::Platform,
-    ) -> futures_util::future::BoxFuture<'static, Option<String>> {
-        let app = self.app.clone();
-        Box::pin(async move { accounts::export(&app, platform).await })
-    }
-}
 
 /// The default download folder: `<Downloads>/DarkLoad`, created on demand.
 pub fn default_download_dir(app: &AppHandle) -> String {
@@ -140,7 +124,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         jobs_dir: cache_dir.join("jobs"),
         ytdlp_cache: cache_dir.join("yt-dlp"),
         data_dir,
-        cache_dir,
         log_file,
     };
     let _ = std::fs::create_dir_all(&paths.thumbnails_dir);
@@ -158,9 +141,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             app: handle.clone(),
         }),
     );
-    queue.set_cookie_provider(Arc::new(AccountCookies {
-        app: handle.clone(),
-    }));
     let tiktok_guest = Arc::new(tiktok::GuestPlayer::new(handle.clone())?);
     queue.set_guest_player(tiktok_guest.clone());
 
@@ -185,8 +165,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .ok_or_else(|| {
             errors::AppError::internal("The main window is missing from the configuration.")
         })?;
-    // Apply prototype hardening before local app scripts run. External player and sign-in
-    // pages run in separate webviews and need the browser's normal JavaScript behavior.
+    // The isolated TikTok player needs the browser's normal JavaScript behavior.
+    // Apply prototype hardening only to the main window, before its scripts run.
     tauri::WebviewWindowBuilder::from_config(&handle, main_window)?
         .initialization_script("Object.freeze(Object.prototype);")
         .build()?;
@@ -262,9 +242,6 @@ pub fn run() {
             commands::clear_temporary_files,
             commands::validate_directory,
             commands::has_active_downloads,
-            commands::accounts_status,
-            commands::accounts_connect,
-            commands::accounts_disconnect,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DarkLoad");

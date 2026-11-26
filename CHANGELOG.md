@@ -5,28 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Added
-
-- A guest-player fallback for public TikTok videos when the standard link asks for sign-in. It uses the desktop webview and keeps guest sessions temporary.
-- Optional TikTok and Instagram account connections for platforms that require sign-in to serve some public posts. Sign-in takes place on the platform's own page, and sessions stay on the device.
-- Customizable background color for the OLED theme, with presets (Pure black, Midnight, Plum, Forest, Ember, Graphite) or any sufficiently dark custom color. All surfaces are derived from it, and colors too bright for readable text are rejected.
-- "Prefer IPv4" network setting, enabled by default, which prevents analysis from stalling on networks with broken IPv6 connectivity.
-
-### Fixed
-
-- Thumbnail conversion before a download no longer shows the job as "Converting".
-- The "already downloaded" warning only appears when the same media type was downloaded before.
-
-### Security
-
-- Updated the bundled SQLite (rusqlite 0.43) and the zip extraction library (zip 9) to address published advisories.
-
 ## [1.0.0] - 2026-11-26
 
 ### Added
 
-- Desktop application built with Tauri 2, Rust and React with a pure-black OLED interface and a collapsible sidebar.
-- Link analysis for YouTube videos, Shorts, playlists and archived livestreams, public TikTok videos and public Instagram reels, posts and carousels.
+- Desktop application built with Tauri 2, Rust and React with a pure-black OLED interface and a collapsible sidebar. Settings and About sit at the bottom of the sidebar.
+- Customizable OLED background color with six presets and support for sufficiently dark custom colors.
+- Link analysis for YouTube videos, Shorts, playlists and archived livestreams, public TikTok videos and public Instagram reels, posts and carousels. TikTok and Instagram use guest access, with a public embedded-player fallback for TikTok.
 - Quality selection that inspects the formats offered by the source: Best Available, Exact Resolution, Best Compatible and Custom expressions, with container compatibility checks that never silently reduce quality.
 - Audio extraction to Original, MP3, M4A, AAC, FLAC, WAV, Opus and OGG with configurable bitrate and honest notes about lossy sources.
 - Metadata, thumbnail, chapter and subtitle embedding, filename templates, duplicate handling and speed limits.
@@ -35,3 +20,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - SQLite download history with search, filters, sorting, re-download and safe removal.
 - Managed yt-dlp, FFmpeg, FFprobe and Deno components installed from official releases with SHA-256 verification.
 - Desktop notifications, optional clipboard monitoring and signed application updates for configured builds.
+- A "Prefer IPv4" setting, enabled by default, to prevent analysis from stalling on networks with broken IPv6 connectivity.
+
+### Fixed
+
+- Thumbnail conversion before a download preserves the download status.
+- The "already downloaded" warning only appears for a previous download of the same media type.
+
+### Security
+
+- Updated the bundled SQLite (rusqlite 0.43) and the zip extraction library (zip 9) to address published advisories.

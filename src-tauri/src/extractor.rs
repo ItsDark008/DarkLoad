@@ -140,7 +140,6 @@ pub async fn analyze(
     tools: &ToolPaths,
     detected: &DetectedUrl,
     net: NetOptions,
-    cookies: Option<&Path>,
     cancel: &CancellationToken,
 ) -> AppResult<Analysis> {
     let socket_timeout = net.socket_timeout;
@@ -154,10 +153,6 @@ pub async fn analyze(
         args.push("--flat-playlist".into());
     } else {
         args.push("--no-playlist".into());
-    }
-    if let Some(file) = cookies {
-        args.push("--cookies".into());
-        args.push(file.as_os_str().to_owned());
     }
     args.push("--".into());
     args.push(detected.url.clone().into());
@@ -558,13 +553,14 @@ pub fn classify_error(stderr: &str) -> AppError {
             "The platform is limiting requests. Wait a few minutes and try again.",
         )
     } else if has("login required")
+        || has("requiring login")
         || has("log in")
         || has("sign in")
         || has("cookies") && has("authentication")
     {
         (
             ErrorCode::LoginRequired,
-            "This content requires signing in and cannot be downloaded.",
+            "This content is unavailable without signing in.",
         )
     } else if has("video unavailable")
         || has("has been removed")
@@ -619,7 +615,13 @@ pub fn classify_error(stderr: &str) -> AppError {
     } else {
         (ErrorCode::ProcessFailed, "The download failed.")
     };
-    AppError::new(code, message).with_detail(error_line)
+    // Extractor sign-in instructions can point to account and cookie options the app does not use.
+    let error = AppError::new(code, message);
+    if code == ErrorCode::LoginRequired || has("--cookies") {
+        error
+    } else {
+        error.with_detail(error_line)
+    }
 }
 
 /// Returns the platform name for a stored platform string.
@@ -808,6 +810,19 @@ mod tests {
     fn transient_classification_is_retryable() {
         assert!(classify_error("ERROR: Read timed out.").retryable());
         assert!(!classify_error("ERROR: Private video").retryable());
+    }
+
+    #[test]
+    fn sign_in_errors_keep_the_reason_without_account_instructions() {
+        let tiktok = classify_error("ERROR: TikTok is requiring login for access to this content.");
+        assert_eq!(tiktok.code, ErrorCode::LoginRequired);
+        assert!(tiktok.detail.is_none());
+
+        let instagram = classify_error(
+            "ERROR: Requested content is not available, rate-limit reached or login required. Use --cookies for authentication.",
+        );
+        assert_eq!(instagram.code, ErrorCode::RateLimited);
+        assert!(instagram.detail.is_none());
     }
 
     #[test]

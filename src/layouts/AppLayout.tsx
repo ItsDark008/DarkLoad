@@ -24,12 +24,17 @@ import { depsHealth, useApp, type Page } from "@/stores/app";
 import { summarize, useQueue } from "@/stores/queue";
 import { formatPercent } from "@/lib/format";
 
-const NAV: { page: Page; label: string; icon: LucideIcon; key: string }[] = [
+type NavItem = { page: Page; label: string; icon: LucideIcon; key: string };
+
+const WORKSPACE_NAV: NavItem[] = [
   { page: "overview", label: "Overview", icon: LayoutGrid, key: "1" },
   { page: "downloader", label: "Downloader", icon: ArrowDownToLine, key: "2" },
   { page: "batch", label: "Batch Download", icon: Layers, key: "3" },
   { page: "queue", label: "Download Queue", icon: ListVideo, key: "4" },
   { page: "history", label: "History", icon: History, key: "5" },
+];
+
+const APP_NAV: NavItem[] = [
   { page: "settings", label: "Settings", icon: SettingsIcon, key: "6" },
   { page: "about", label: "About", icon: Info, key: "7" },
 ];
@@ -113,6 +118,42 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   }[health];
   const healthColor = { ok: "bg-success", warning: "bg-warning", error: "bg-danger", unknown: "bg-muted" }[health];
 
+  function renderNavItem(item: NavItem) {
+    const Icon = item.icon;
+    const selected = page === item.page;
+    return (
+      <li key={item.page}>
+        <Tooltip content={item.label} side="right" shortcut={`${modKey}+${item.key}`} disabled={!collapsed}>
+          <button
+            type="button"
+            onClick={() => navigate(item.page)}
+            aria-current={selected ? "page" : undefined}
+            aria-label={collapsed ? item.label : undefined}
+            className={cn(
+              "relative flex h-9 w-full items-center gap-3 rounded-md text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-hover/70",
+              collapsed ? "justify-center" : "px-2.5",
+              selected ? "bg-elevated text-fg" : "text-fg-2 hover:bg-card hover:text-fg",
+            )}
+          >
+            {selected ? <span className="absolute top-2 bottom-2 left-0 w-[2px] rounded-full bg-accent" aria-hidden /> : null}
+            <Icon className={cn("size-[18px] shrink-0", selected && "text-accent-hover")} strokeWidth={1.8} />
+            {!collapsed ? <span className="flex-1 truncate text-left">{item.label}</span> : null}
+            {item.page === "queue" && active > 0 ? (
+              <span
+                className={cn(
+                  "tabular rounded-full bg-accent px-1.5 text-[10px] leading-4 font-semibold text-accent-fg",
+                  collapsed && "absolute top-1 right-1",
+                )}
+              >
+                {active}
+              </span>
+            ) : null}
+          </button>
+        </Tooltip>
+      </li>
+    );
+  }
+
   return (
     <nav
       aria-label="Main"
@@ -121,63 +162,27 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         collapsed ? "w-[60px]" : "w-[228px]",
       )}
     >
-      <div className={cn("flex h-16 items-center gap-2.5", collapsed ? "justify-center" : "px-5")}>
+      <div className={cn("flex h-16 shrink-0 items-center gap-2.5", collapsed ? "justify-center" : "px-5")}>
         <LogoMark className="size-7 text-fg" />
-        {!collapsed ? (
-          <div className="min-w-0 leading-tight">
-            <div className="text-[15px] font-semibold tracking-tight">DarkLoad</div>
-            <div className="truncate text-[11px] text-fg-2">One link. Maximum quality.</div>
-          </div>
-        ) : null}
+        {!collapsed ? <span className="truncate text-[15px] font-semibold tracking-tight">DarkLoad</span> : null}
       </div>
 
-      <ul className={cn("flex flex-1 flex-col gap-0.5 overflow-y-auto", collapsed ? "px-2" : "px-3")}>
-        {NAV.map((item) => {
-          const Icon = item.icon;
-          const selected = page === item.page;
-          const button = (
-            <button
-              type="button"
-              onClick={() => navigate(item.page)}
-              aria-current={selected ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              className={cn(
-                "group relative flex h-9 w-full items-center gap-3 rounded-md text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-hover/70",
-                collapsed ? "justify-center" : "px-2.5",
-                selected ? "bg-elevated text-fg" : "text-fg-2 hover:bg-card hover:text-fg",
-              )}
-            >
-              {selected ? <span className="absolute top-2 bottom-2 left-0 w-[2px] rounded-full bg-accent" aria-hidden /> : null}
-              <Icon className={cn("size-[18px] shrink-0", selected ? "text-accent-hover" : "")} strokeWidth={1.8} />
-              {!collapsed ? <span className="flex-1 truncate text-left">{item.label}</span> : null}
-              {item.page === "queue" && active > 0 ? (
-                <span
-                  className={cn(
-                    "tabular rounded-full bg-accent px-1.5 text-[10px] leading-4 font-semibold text-accent-fg",
-                    collapsed && "absolute top-1 right-1",
-                  )}
-                >
-                  {active}
-                </span>
-              ) : null}
-            </button>
-          );
-          return (
-            <li key={item.page}>
-              <Tooltip content={item.label} side="right" shortcut={`${modKey}+${item.key}`} disabled={!collapsed}>
-                {button}
-              </Tooltip>
-            </li>
-          );
-        })}
-      </ul>
+      <div className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-1", collapsed ? "px-2" : "px-3")}>
+        <ul aria-label="Download workspace" className="flex shrink-0 flex-col gap-0.5">
+          {WORKSPACE_NAV.map(renderNavItem)}
+        </ul>
+        <ul aria-label="Application" className="mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line pt-2 pb-1">
+          {APP_NAV.map(renderNavItem)}
+        </ul>
+      </div>
 
-      <div className={cn("flex flex-col gap-1 border-t border-line py-3", collapsed ? "items-center px-2" : "px-3")}>
+      <div className={cn("flex shrink-0 flex-col gap-1 border-t border-line py-3", collapsed ? "items-center px-2" : "px-3")}>
         {update?.available ? (
           <Tooltip content={`Version ${update.version} is available`} side="right" disabled={!collapsed}>
             <button
               type="button"
               onClick={() => navigate("settings", "updates")}
+              aria-label={collapsed ? `Update ${update.version} available` : undefined}
               className={cn(
                 "flex h-8 items-center gap-2.5 rounded-md text-xs font-medium text-accent-hover transition-colors hover:bg-card",
                 collapsed ? "w-9 justify-center" : "w-full px-2.5",

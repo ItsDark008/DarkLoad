@@ -40,9 +40,6 @@ const COMMANDS: &[&str] = &[
     "clear_temporary_files",
     "validate_directory",
     "has_active_downloads",
-    "accounts_status",
-    "accounts_connect",
-    "accounts_disconnect",
 ];
 
 fn main() {

@@ -398,12 +398,6 @@ export interface UpdateInfo {
   date: string | null;
 }
 
-export interface AccountStatus {
-  platform: Platform;
-  connected: boolean;
-  signingIn: boolean;
-}
-
 export interface DeleteResult {
   entries: number;
   files: number;

@@ -14,7 +14,6 @@ import {
   Shield,
   SlidersHorizontal,
   Stethoscope,
-  UserRound,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -32,16 +31,12 @@ import { useApp, type SettingsSection } from "@/stores/app";
 import { useHistorySignal } from "@/stores/signals";
 import type { DependencyStatus, DepId, Settings } from "@/types/api";
 import { OutputFolder } from "./Downloader";
-import { PlatformIcon } from "@/components/brand";
-import { useAccounts } from "@/hooks/useAccounts";
-import { PLATFORM_NAMES } from "@/lib/urls";
 import { Changelog } from "./About";
 
 const SECTIONS: { id: SettingsSection; label: string; icon: LucideIcon }[] = [
   { id: "general", label: "General", icon: SlidersHorizontal },
   { id: "downloads", label: "Downloads", icon: Download },
   { id: "appearance", label: "Appearance", icon: Brush },
-  { id: "accounts", label: "Accounts", icon: UserRound },
   { id: "dependencies", label: "Dependencies", icon: Package },
   { id: "updates", label: "Updates", icon: CircleArrowUp },
   { id: "privacy", label: "Privacy", icon: Shield },
@@ -486,63 +481,6 @@ function Dependencies({ s, set }: { s: Settings; set: (p: Partial<Settings>) => 
   );
 }
 
-function Accounts() {
-  const { accounts, connect, disconnect } = useAccounts();
-  const [confirm, setConfirm] = useState<AccountStatusPlatform | null>(null);
-  return (
-    <>
-      <Group title="Connected accounts">
-        <div className="px-5 py-4 text-xs leading-relaxed text-fg-2">
-          TikTok and Instagram often refuse to serve public videos to visitors who are not signed in. Connecting your own account lets DarkLoad download what you can already watch.
-          You sign in on the platform&apos;s own page; DarkLoad never sees or stores your password. The session is kept in DarkLoad&apos;s private browser storage on this
-          device and is passed to yt-dlp only while a download from that platform runs. Connecting is optional and does not unlock content your account cannot access.
-        </div>
-        {accounts == null
-          ? null
-          : accounts.map((account) => (
-              <div key={account.platform} className="flex items-center justify-between gap-4 px-5 py-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <PlatformIcon platform={account.platform} className="size-5 text-fg" />
-                  <div>
-                    <div className="text-[13px] font-medium">{PLATFORM_NAMES[account.platform]}</div>
-                    <div className="mt-0.5 text-xs text-fg-2">
-                      {account.signingIn ? "Waiting for you to sign in…" : account.connected ? "Connected on this device" : "Not connected"}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {account.connected ? <Badge tone="success">Connected</Badge> : null}
-                  {account.connected ? (
-                    <Button variant="ghost" onClick={() => setConfirm(account.platform as AccountStatusPlatform)}>
-                      Disconnect
-                    </Button>
-                  ) : (
-                    <Button variant="primary" onClick={() => connect(account.platform)}>
-                      {account.signingIn ? "Show sign-in window" : "Connect"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-      </Group>
-      <ConfirmDialog
-        open={confirm != null}
-        onOpenChange={(o) => !o && setConfirm(null)}
-        title={`Disconnect ${confirm ? PLATFORM_NAMES[confirm] : ""}?`}
-        description="DarkLoad removes this platform's session from its storage on this device. Downloads that require signing in will stop working until you connect again."
-        confirmLabel="Disconnect"
-        destructive
-        onConfirm={() => {
-          if (confirm) disconnect(confirm);
-          setConfirm(null);
-        }}
-      />
-    </>
-  );
-}
-
-type AccountStatusPlatform = "tiktok" | "instagram";
-
 function Updates({ s, set }: { s: Settings; set: (p: Partial<Settings>) => Promise<boolean> }) {
   const info = useApp((st) => st.info);
   const update = useApp((st) => st.update);
@@ -717,7 +655,6 @@ export function SettingsPage() {
         {section === "general" ? <General {...props} /> : null}
         {section === "downloads" ? <Downloads {...props} /> : null}
         {section === "appearance" ? <Appearance {...props} /> : null}
-        {section === "accounts" ? <Accounts /> : null}
         {section === "dependencies" ? <Dependencies {...props} /> : null}
         {section === "updates" ? <Updates {...props} /> : null}
         {section === "privacy" ? <Privacy {...props} /> : null}
