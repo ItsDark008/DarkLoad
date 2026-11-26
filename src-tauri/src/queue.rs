@@ -1469,7 +1469,8 @@ mod tests {
         let done = wait_for(&h.queue, &job.id, |j| j.state.is_finished()).await;
         assert_eq!(done.state, JobState::Completed, "{:?}", done.error);
         let path = PathBuf::from(done.output_path.unwrap());
-        assert!(path.starts_with(&h.out));
+        // Runner temp folders may use 8.3 short names; DarkLoad saves to the canonical path.
+        assert!(path.starts_with(security::dunce_canonicalize(&h.out)));
         assert!(path.is_file());
         assert!(done.file_size.unwrap() > 0);
         assert_eq!(
