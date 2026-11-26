@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 300" width="620" height="150">
+  <title>DarkLoad</title>
+  <rect width="1240" height="300" rx="40" fill="#000000"/>
+  <g transform="translate(40 30) scale(0.234)">
+    <path d="M584.7 254 L771.8 362 L771.8 662 L512 812 L252.2 662 L252.2 362 L439.3 254"
+          fill="none" stroke="#8B5CF6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 168 V 606" fill="none" stroke="#FFFFFF" stroke-width="68" stroke-linecap="round"/>
+    <path d="M398 516 L512 630 L626 516" fill="none" stroke="#FFFFFF" stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="300" y="178" fill="#FFFFFF" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="112" font-weight="650" letter-spacing="-3">DarkLoad</text>
+  <text x="304" y="232" fill="#A1A1AA" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="36" font-weight="450">One link. Maximum quality.</text>
+</svg>

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-queue-reveal"
+description = "Enables the queue_reveal command without any pre-configured scope."
+commands.allow = ["queue_reveal"]
+
+[[permission]]
+identifier = "deny-queue-reveal"
+description = "Denies the queue_reveal command without any pre-configured scope."
+commands.deny = ["queue_reveal"]

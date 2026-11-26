@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-deps-diagnostics"
+description = "Enables the deps_diagnostics command without any pre-configured scope."
+commands.allow = ["deps_diagnostics"]
+
+[[permission]]
+identifier = "deny-deps-diagnostics"
+description = "Denies the deps_diagnostics command without any pre-configured scope."
+commands.deny = ["deps_diagnostics"]

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+src-tauri/gen/
+coverage/
+*.tsbuildinfo
+
+# Release staging
+release/
+
+# Logs and local state
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Signing keys must never be committed
+*.key
+*.key.pub
+*.pfx
+*.p12
