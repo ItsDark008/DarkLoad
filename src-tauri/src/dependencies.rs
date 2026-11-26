@@ -904,7 +904,11 @@ fn extract(package: DepId, kind: ArchiveKind, archive: &Path, out_dir: &Path) ->
                 if !entry.is_file() {
                     continue;
                 }
-                if let Some(name) = wanted_entry(package, entry.name()) {
+                // Entries whose names are not valid text cannot be the files we need.
+                let Ok(entry_name) = entry.name().map(|n| n.into_owned()) else {
+                    continue;
+                };
+                if let Some(name) = wanted_entry(package, &entry_name) {
                     write_entry(&name, &mut entry)?;
                 }
             }

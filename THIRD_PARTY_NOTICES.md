@@ -21,7 +21,7 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | Inter (via @fontsource-variable/inter) | SIL Open Font License 1.1 |
 | Lucide icons | ISC |
 
-## Rust crates (613)
+## Rust crates (612)
 
 | Package | Version | License |
 | --- | --- | --- |
@@ -31,7 +31,6 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [alloc-stdlib](https://github.com/dropbox/rust-alloc-no-stdlib) | 0.3.0 | BSD-3-Clause |
 | [android_system_properties](https://github.com/nical/android_system_properties) | 0.1.6 | MIT OR Apache-2.0 |
 | [anyhow](https://github.com/dtolnay/anyhow) | 1.0.105 | MIT OR Apache-2.0 |
-| [arbitrary](https://github.com/rust-fuzz/arbitrary/) | 1.5.0 | MIT OR Apache-2.0 |
 | [arboard](https://github.com/1Password/arboard) | 3.7.0 | MIT OR Apache-2.0 |
 | [async-broadcast](https://github.com/smol-rs/async-broadcast) | 0.7.2 | MIT OR Apache-2.0 |
 | [async-channel](https://github.com/smol-rs/async-channel) | 2.5.0 | Apache-2.0 OR MIT |
@@ -110,7 +109,6 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [darling_macro](https://github.com/TedDriggs/darling) | 0.24.1 | MIT |
 | [dbus](https://github.com/diwic/dbus-rs) | 0.9.12 | Apache-2.0/MIT |
 | [deranged](https://github.com/jhpratt/deranged) | 0.5.9 | MIT OR Apache-2.0 |
-| [derive_arbitrary](https://github.com/rust-fuzz/arbitrary) | 1.5.0 | MIT OR Apache-2.0 |
 | [derive_more](https://github.com/JelteF/derive_more) | 2.1.1 | MIT |
 | [derive_more-impl](https://github.com/JelteF/derive_more) | 2.1.1 | MIT |
 | [digest](https://github.com/RustCrypto/traits) | 0.10.7 | MIT OR Apache-2.0 |
@@ -194,7 +192,7 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.12.3 | MIT OR Apache-2.0 |
 | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.15.5 | MIT OR Apache-2.0 |
 | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.17.2 | MIT OR Apache-2.0 |
-| [hashlink](https://github.com/kyren/hashlink) | 0.10.0 | MIT OR Apache-2.0 |
+| [hashlink](https://github.com/djc/hashlink) | 0.12.2 | MIT OR Apache-2.0 |
 | [heck](https://github.com/withoutboats/heck) | 0.4.1 | MIT OR Apache-2.0 |
 | [heck](https://github.com/withoutboats/heck) | 0.5.0 | MIT OR Apache-2.0 |
 | [hermit-abi](https://github.com/hermit-os/hermit-rs) | 0.5.3 | MIT OR Apache-2.0 |
@@ -260,7 +258,7 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [libdbus-sys](https://github.com/diwic/dbus-rs) | 0.2.7 | Apache-2.0/MIT |
 | [libloading](https://github.com/nagisa/rust_libloading/) | 0.7.4 | ISC |
 | [libredox](https://gitlab.redox-os.org/redox-os/libredox.git) | 0.1.25 | MIT |
-| [libsqlite3-sys](https://github.com/rusqlite/rusqlite) | 0.35.0 | MIT |
+| [libsqlite3-sys](https://github.com/rusqlite/rusqlite) | 0.40.0 | MIT |
 | [link-section](https://github.com/mmastrac/linktime) | 0.19.4 | Apache-2.0 OR MIT |
 | [linux-raw-sys](https://github.com/sunfishcode/linux-raw-sys) | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | [litemap](https://github.com/unicode-org/icu4x) | 0.8.3 | Unicode-3.0 |
@@ -377,7 +375,8 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [reqwest](https://github.com/seanmonstar/reqwest) | 0.13.5 | MIT OR Apache-2.0 |
 | [rfd](https://github.com/PolyMeilex/rfd) | 0.17.2 | MIT |
 | [ring](https://github.com/briansmith/ring) | 0.17.14 | Apache-2.0 AND ISC |
-| [rusqlite](https://github.com/rusqlite/rusqlite) | 0.37.0 | MIT |
+| [rsqlite-vfs](https://github.com/Spxg/sqlite-wasm-rs) | 0.2.0 | MIT |
+| [rusqlite](https://github.com/rusqlite/rusqlite) | 0.43.0 | MIT |
 | [rustc_version](https://github.com/djc/rustc-version-rs) | 0.4.1 | MIT OR Apache-2.0 |
 | [rustc-hash](https://github.com/rust-lang/rustc-hash) | 2.1.3 | Apache-2.0 OR MIT |
 | [rustix](https://github.com/bytecodealliance/rustix) | 1.1.6 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
@@ -432,6 +431,7 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [softbuffer](https://github.com/rust-windowing/softbuffer) | 0.4.8 | MIT OR Apache-2.0 |
 | [soup3](https://gitlab.gnome.org/World/Rust/soup3-rs) | 0.5.0 | MIT |
 | [soup3-sys](https://gitlab.gnome.org/World/Rust/soup3-rs) | 0.5.0 | MIT |
+| [sqlite-wasm-rs](https://github.com/Spxg/sqlite-wasm-rs) | 0.6.3 | MIT |
 | [stable_deref_trait](https://github.com/storyyeller/stable_deref_trait) | 1.2.1 | MIT OR Apache-2.0 |
 | [static_vcruntime](https://github.com/ChrisDenton/static_vcruntime) | 3.0.0 | MIT OR Apache-2.0 OR Zlib |
 | [string_cache](https://github.com/servo/string-cache) | 0.11.0 | MIT OR Apache-2.0 |
@@ -627,7 +627,6 @@ These tools are **not** bundled in DarkLoad's installers. DarkLoad downloads the
 | [zerotrie](https://github.com/unicode-org/icu4x) | 0.2.5 | Unicode-3.0 |
 | [zerovec](https://github.com/unicode-org/icu4x) | 0.11.9 | Unicode-3.0 |
 | [zerovec-derive](https://github.com/unicode-org/icu4x) | 0.11.7 | Unicode-3.0 |
-| [zip](https://github.com/zip-rs/zip2.git) | 2.6.1 | MIT |
 | [zip](https://github.com/zip-rs/zip2) | 9.8.2 | MIT |
 | [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs) | 0.6.9 | Zlib |
 | [zmij](https://github.com/dtolnay/zmij) | 1.0.23 | MIT |

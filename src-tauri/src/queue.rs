@@ -1259,11 +1259,15 @@ mod tests {
     }
 
     fn fake_tool() -> Option<PathBuf> {
-        // `cargo test` builds examples; the fake extractor lives next to the test binary.
+        // Built by `cargo build --examples` (CI) or `cargo test`. Search the profile folders
+        // above the test binary, since their layout differs between Cargo versions.
+        let name = format!("fake_ytdlp{}", std::env::consts::EXE_SUFFIX);
         let exe = std::env::current_exe().ok()?;
-        let dir = exe.parent()?.parent()?.join("examples");
-        let path = dir.join(format!("fake_ytdlp{}", std::env::consts::EXE_SUFFIX));
-        path.is_file().then_some(path)
+        exe.ancestors()
+            .skip(1)
+            .take(4)
+            .map(|dir| dir.join("examples").join(&name))
+            .find(|path| path.is_file())
     }
 
     async fn harness(install_tools: bool, configure: impl FnOnce(&mut Settings)) -> Harness {

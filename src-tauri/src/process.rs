@@ -6,7 +6,9 @@
 //! (Windows) so cancelling a download also stops FFmpeg instances started by yt-dlp.
 
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(windows)]
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -265,6 +267,7 @@ pub fn program_name(program: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn shell() -> (PathBuf, Vec<OsString>) {
         #[cfg(windows)]
