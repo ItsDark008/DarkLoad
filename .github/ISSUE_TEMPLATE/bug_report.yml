@@ -1,0 +1,59 @@
+name: Bug report
+description: Something does not work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a problem. Please do not include private links or personal information.
+  - type: input
+    id: version
+    attributes:
+      label: DarkLoad version
+      description: Shown in the sidebar and on the About page.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Ubuntu / Debian
+        - Fedora
+        - Arch Linux
+        - Other Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Source platform
+      options:
+        - YouTube
+        - TikTok
+        - Instagram
+        - Not related to a specific platform
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Paste a link to a public video
+        2. Choose …
+        3. Click Download
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste the report from Settings → Dependencies → Diagnostics.
+      render: text
