@@ -76,8 +76,8 @@ export const useDownloader = create<DownloaderStore>((set, get) => ({
   },
 
   options: null,
-  setOptions: (options) => set({ options }),
-  patchOptions: (patch) => set((s) => (s.options ? { options: { ...s.options, ...patch } } : {})),
+  setOptions: (options) => set({ options, plan: null, planError: null }),
+  patchOptions: (patch) => set((s) => (s.options ? { options: { ...s.options, ...patch }, plan: null, planError: null } : {})),
 
   plan: null,
   planError: null,

@@ -170,6 +170,11 @@ export type VideoCodecPreference = "any" | "av1" | "vp9" | "h265" | "h264";
 export type AudioCodecPreference = "any" | "opus" | "aac";
 export type AudioFormat = "original" | "mp3" | "m4a" | "aac" | "flac" | "wav" | "opus" | "ogg";
 
+export interface AudioTrackSelection {
+  original: boolean;
+  languages: string[];
+}
+
 export interface DownloadOptions {
   mediaType: MediaType;
   qualityMode: QualityMode;
@@ -179,6 +184,7 @@ export interface DownloadOptions {
   container: Container;
   videoCodec: VideoCodecPreference;
   audioCodec: AudioCodecPreference;
+  audioTracks: AudioTrackSelection;
   allowHdr: boolean;
   audioFormat: AudioFormat;
   audioBitrate: number | null;
@@ -191,6 +197,12 @@ export interface DownloadOptions {
   subtitleLanguages: string[];
   includeAutoSubtitles: boolean;
   filenameTemplate: string | null;
+}
+
+export interface DownloadPreset {
+  name: string;
+  options: DownloadOptions;
+  outputDir: string | null;
 }
 
 export interface PlanNote {
@@ -207,6 +219,7 @@ export interface ContainerConflict {
 export interface SelectionPlan {
   video: MediaFormat | null;
   audio: MediaFormat | null;
+  additionalAudio: MediaFormat[];
   formatSelector: string;
   formatSort: string | null;
   outputContainer: Container | null;
@@ -350,6 +363,7 @@ export interface Settings {
   partialFiles: "delete" | "keep";
   playlistBehavior: "select" | "all";
   resumeQueueOnStartup: boolean;
+  downloadPresets: DownloadPreset[];
   videoCodec: VideoCodecPreference;
   audioCodec: AudioCodecPreference;
   allowHdr: boolean;

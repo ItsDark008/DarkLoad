@@ -425,7 +425,10 @@ impl QueueManager {
                     ));
                 }
                 // Spotify links only ever produce audio files.
-                request.options.media_type = MediaType::Audio;
+                if request.options.media_type == MediaType::Video {
+                    request.options.media_type = MediaType::Audio;
+                    request.options.audio_tracks.keep_one();
+                }
                 if let Some(track) = request.spotify.as_mut() {
                     track.validate()?;
                     if Some(&track.id) != detected.id.as_ref() {
@@ -472,9 +475,18 @@ impl QueueManager {
             };
             if let Some(media) = self.cache.get(&job.request.url, job.request.playlist_item) {
                 apply_media(&mut job, &media);
-                let plan = formats::plan(&media.formats, media.duration, &job.request.options)?;
-                apply_plan_notes(&mut job, &plan);
-                job.plan = Some(plan);
+                match formats::plan(&media.formats, media.duration, &job.request.options) {
+                    Ok(plan) => {
+                        apply_plan_notes(&mut job, &plan);
+                        job.plan = Some(plan);
+                    }
+                    // A missing track belongs to this item and must not prevent the rest of
+                    // a selection from being queued. The regular worker resolves it per job.
+                    Err(error)
+                        if error.code == ErrorCode::FormatUnavailable
+                            && !job.request.options.audio_tracks.is_auto() => {}
+                    Err(error) => return Err(error),
+                }
             }
             jobs.push(job);
         }
@@ -870,6 +882,7 @@ impl QueueManager {
         let stream_sizes: Vec<Option<u64>> = [plan.video.as_ref(), plan.audio.as_ref()]
             .into_iter()
             .flatten()
+            .chain(&plan.additional_audio)
             .map(|f| f.size().map(|s| s.0))
             .collect();
         let expected_streams = stream_sizes.len().max(1);

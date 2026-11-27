@@ -106,6 +106,9 @@ pub fn build_args(tools: &ToolPaths, spec: &DownloadSpec<'_>) -> Vec<OsString> {
 
     match o.media_type {
         MediaType::Video => {
+            if !o.audio_tracks.is_auto() && spec.plan.audio_count() > 1 {
+                args.push("--audio-multistreams".into());
+            }
             if let Some(container) = spec.plan.output_container.and_then(|c| c.ext()) {
                 if spec.plan.requires_merge {
                     args.push("--merge-output-format".into());
@@ -399,7 +402,7 @@ impl ProgressTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::formats::{plan, Container};
+    use crate::formats::{plan, AudioTrackSelection, Container, MediaFormat};
 
     fn tools() -> ToolPaths {
         ToolPaths {
@@ -411,7 +414,15 @@ mod tests {
     }
 
     fn args_for(options: &DownloadOptions, settings: &Settings) -> Vec<String> {
-        let plan = plan(&[], None, options).unwrap();
+        args_with_formats(options, settings, &[])
+    }
+
+    fn args_with_formats(
+        options: &DownloadOptions,
+        settings: &Settings,
+        formats: &[MediaFormat],
+    ) -> Vec<String> {
+        let plan = plan(formats, None, options).unwrap();
         let spec = DownloadSpec {
             url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
             playlist_item: None,
@@ -468,6 +479,45 @@ mod tests {
             "ffmpeg:-progress 'file:/work/ffmpeg-progress.txt' -nostats"
         ));
         assert!(!args.contains(&"--extract-audio".to_string()));
+        assert!(!args.contains(&"--audio-multistreams".to_string()));
+    }
+
+    #[test]
+    fn video_with_selected_languages_enables_multiple_audio_streams() {
+        let formats = [
+            MediaFormat {
+                id: "v".into(),
+                vcodec: Some("avc1".into()),
+                ..Default::default()
+            },
+            MediaFormat {
+                id: "eng".into(),
+                language: Some("en".into()),
+                acodec: Some("mp4a".into()),
+                ..Default::default()
+            },
+            MediaFormat {
+                id: "ita".into(),
+                language: Some("it".into()),
+                acodec: Some("mp4a".into()),
+                ..Default::default()
+            },
+        ];
+        let options = DownloadOptions {
+            audio_tracks: AudioTrackSelection {
+                original: false,
+                languages: vec!["en".into(), "it".into()],
+            },
+            ..Default::default()
+        };
+        let args = args_with_formats(&options, &Settings::default(), &formats);
+        assert!(args.contains(&"--audio-multistreams".to_string()));
+        assert!(has_pair(
+            &args,
+            "--format",
+            "v+eng[language=en]+ita[language=it]"
+        ));
+        assert!(has_pair(&args, "--merge-output-format", "mp4"));
     }
 
     #[test]

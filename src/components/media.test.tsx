@@ -42,6 +42,7 @@ const media = {
 const plan: SelectionPlan = {
   video: null,
   audio: null,
+  additionalAudio: [],
   formatSelector: "137+140",
   formatSort: null,
   outputContainer: "mkv",

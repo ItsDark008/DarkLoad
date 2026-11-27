@@ -1,18 +1,20 @@
 import { useId, useState } from "react";
 import { ChevronDown, Film, Music, SlidersHorizontal } from "lucide-react";
+import { AudioTracksField } from "@/components/AudioTracksField";
 import { Input, Label } from "@/components/ui/input";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Segmented, Switch } from "@/components/ui/controls";
-import { AUDIO_BITRATES, AUDIO_FORMATS, CONTAINERS, QUALITY_MODES } from "@/lib/options";
+import { AUDIO_BITRATES, AUDIO_FORMATS, AUTOMATIC_AUDIO, CONTAINERS, QUALITY_MODES, singleAudioTrack } from "@/lib/options";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/stores/app";
-import type { AudioCodecPreference, DownloadOptions, DuplicatePolicy, FormatSummary, VideoCodecPreference } from "@/types/api";
+import type { AudioCodecPreference, DownloadOptions, DuplicatePolicy, FormatSummary, MediaFormat, VideoCodecPreference } from "@/types/api";
 
 interface Props {
   options: DownloadOptions;
   onChange: (patch: Partial<DownloadOptions>) => void;
   /** Formats offered by the analyzed source. When absent, only source-independent choices are shown. */
   summary?: FormatSummary | null;
+  formats?: MediaFormat[];
   /** Hides global settings (speed limit, duplicates) in per-item editors. */
   showGlobal?: boolean;
   defaultAdvancedOpen?: boolean;
@@ -57,7 +59,7 @@ const AUDIO_CODECS: SelectOption<AudioCodecPreference>[] = [
   { value: "aac", label: "AAC" },
 ];
 
-export function DownloadOptionsForm({ options, onChange, summary, showGlobal = true, defaultAdvancedOpen = false, audioOnly = false }: Props) {
+export function DownloadOptionsForm({ options, onChange, summary, formats, showGlobal = true, defaultAdvancedOpen = false, audioOnly = false }: Props) {
   const settings = useApp((s) => s.settings);
   const updateSettings = useApp((s) => s.updateSettings);
   const [advanced, setAdvanced] = useState(defaultAdvancedOpen);
@@ -69,6 +71,7 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
   const audioFormat = AUDIO_FORMATS.find((f) => f.value === options.audioFormat);
   const bitrateApplies = !video && options.audioFormat !== "original" && !audioFormat?.lossless;
   const canExact = !summary || resolutions.length > 0;
+  const hasAudioSelection = options.audioTracks.original || options.audioTracks.languages.length > 0;
 
   const qualityOptions: SelectOption<DownloadOptions["qualityMode"]>[] = QUALITY_MODES.map((m) => ({
     value: m.value,
@@ -84,7 +87,7 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
       <Segmented
         aria-label="Media type"
         value={options.mediaType}
-        onValueChange={(mediaType) => onChange({ mediaType })}
+        onValueChange={(mediaType) => onChange({ mediaType, ...(mediaType === "audio" ? { audioTracks: singleAudioTrack(options.audioTracks) } : {}) })}
         options={[
           { value: "video", label: "Video", icon: <Film />, disabled: audioOnly },
           { value: "audio", label: "Audio", icon: <Music />, disabled: summary ? !summary.hasAudio : false },
@@ -101,7 +104,8 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
               options={qualityOptions}
               onValueChange={(qualityMode) => {
                 const patch: Partial<DownloadOptions> = { qualityMode };
-                if (qualityMode === "exact" && options.targetHeight == null && resolutions[0]) patch.targetHeight = resolutions[0].height;
+                if (qualityMode === "exact" && options.targetHeight == null) patch.targetHeight = resolutions[0]?.height ?? 1080;
+                if (qualityMode === "custom") patch.audioTracks = AUTOMATIC_AUDIO;
                 onChange(patch);
               }}
             />
@@ -114,10 +118,12 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
                     id={ids.resolution}
                     value={String(options.targetHeight ?? resolutions[0]?.height ?? "")}
                     onValueChange={(v) => onChange({ targetHeight: Number(v), targetFps: null })}
-                    options={resolutions.map((r) => ({
-                      value: String(r.height),
-                      label: `${r.label}${r.hdr ? " · HDR" : ""}`,
-                    }))}
+                    options={[
+                      ...(options.targetHeight != null && !selectedResolution
+                        ? [{ value: String(options.targetHeight), label: `${options.targetHeight}p (unavailable)`, disabled: true }]
+                        : []),
+                      ...resolutions.map((r) => ({ value: String(r.height), label: `${r.label}${r.hdr ? " · HDR" : ""}` })),
+                    ]}
                   />
                 </Field>
                 <Field label="Frame rate" htmlFor={ids.fps}>
@@ -127,6 +133,9 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
                     onValueChange={(v) => onChange({ targetFps: v === "highest" ? null : Number(v) })}
                     options={[
                       { value: "highest", label: "Highest available" },
+                      ...(options.targetFps != null && !selectedResolution?.frameRates.includes(options.targetFps)
+                        ? [{ value: String(options.targetFps), label: `${options.targetFps} fps (unavailable)`, disabled: true }]
+                        : []),
                       ...(selectedResolution?.frameRates ?? []).map((fps) => ({ value: String(fps), label: `${fps} fps` })),
                     ]}
                   />
@@ -206,6 +215,10 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
         </div>
       )}
 
+      {options.qualityMode !== "custom" && (summary?.hasAudio !== false || hasAudioSelection) ? (
+        <AudioTracksField formats={formats} selection={options.audioTracks} video={video} onChange={(audioTracks) => onChange({ audioTracks })} />
+      ) : null}
+
       <div className="rounded-lg border border-line">
         <button
           type="button"
@@ -260,6 +273,7 @@ export function DownloadOptionsForm({ options, onChange, summary, showGlobal = t
                       <div className="py-2">
                         <Field label="Subtitle languages" htmlFor={ids.langs} hint="Comma-separated codes, for example en, de, pt-BR, or all.">
                           <Input
+                            key={options.subtitleLanguages.join(",")}
                             id={ids.langs}
                             defaultValue={options.subtitleLanguages.join(", ")}
                             onBlur={(e) => {

@@ -24,6 +24,8 @@ interface BatchStore {
   items: BatchItem[];
   globalOptions: DownloadOptions | null;
   setGlobalOptions: (options: DownloadOptions) => void;
+  outputDir: string | null;
+  setOutputDir: (dir: string | null) => void;
   addUrls: (urls: string[]) => { added: number; duplicates: number };
   remove: (ids: string[]) => void;
   update: (id: string, patch: Partial<BatchItem>) => void;
@@ -40,6 +42,8 @@ export const useBatch = create<BatchStore>((set, get) => ({
   items: [],
   globalOptions: null,
   setGlobalOptions: (globalOptions) => set({ globalOptions }),
+  outputDir: null,
+  setOutputDir: (outputDir) => set({ outputDir }),
   analyzing: false,
 
   addUrls: (urls) => {
