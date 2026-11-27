@@ -8,6 +8,7 @@ Thank you for helping improve DarkLoad. This guide explains how to propose chang
 - Contributions that bypass DRM, paywalls, private-content protections, authentication or other access controls will not be accepted.
 - Do not add telemetry, analytics, tracking, advertising or mandatory accounts.
 - Write code, comments, documentation and interface text in clear English.
+- Wrap interface text in `t("…")` (or `tr()` for messages from the backend) and add the Italian translation to `src/i18n/it.ts` (or `src/i18n/it-backend.ts`). `pnpm test` fails when a string has no translation.
 
 ## Getting started
 

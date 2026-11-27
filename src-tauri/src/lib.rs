@@ -8,6 +8,7 @@ pub mod errors;
 pub mod events;
 pub mod extractor;
 pub mod formats;
+pub mod i18n;
 pub mod platform;
 pub mod process;
 pub mod queue;

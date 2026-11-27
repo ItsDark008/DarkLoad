@@ -2,6 +2,7 @@ import * as React from "react";
 import { AlertDialog as AlertPrimitive, ContextMenu as ContextPrimitive, Dialog as DialogPrimitive, DropdownMenu as DropdownPrimitive } from "radix-ui";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "./button";
 
 export const Dialog = DialogPrimitive.Root;
@@ -32,11 +33,11 @@ export function DialogContent({
           <div className="min-w-0">
             <DialogPrimitive.Title className="text-[15px] font-semibold text-fg">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Description className={cn("mt-1 text-[13px] text-fg-2", !description && "sr-only")}>
-              {description ?? (typeof title === "string" ? title : "Dialog")}
+              {description ?? (typeof title === "string" ? title : t("Dialog"))}
             </DialogPrimitive.Description>
           </div>
           <DialogPrimitive.Close asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Close">
+            <Button variant="ghost" size="icon-sm" aria-label={t("Close")}>
               <X />
             </Button>
           </DialogPrimitive.Close>
@@ -70,7 +71,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
           {children}
           <div className="mt-5 flex justify-end gap-2">
             <AlertPrimitive.Cancel asChild>
-              <Button variant="ghost">Cancel</Button>
+              <Button variant="ghost">{t("Cancel")}</Button>
             </AlertPrimitive.Cancel>
             <AlertPrimitive.Action asChild>
               <Button variant={destructive ? "danger" : "primary"} onClick={onConfirm}>

@@ -7,12 +7,16 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 import { invoke } from "@tauri-apps/api/core";
 import { AudioTracksField } from "@/components/AudioTracksField";
 import { DownloadPresets } from "@/components/DownloadPresets";
+import { setLocale } from "@/i18n";
 import { AUTOMATIC_AUDIO, optionsFromSettings } from "@/lib/options";
 import { useApp } from "@/stores/app";
 import type { DownloadPreset, MediaFormat, Settings } from "@/types/api";
 
 Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setLocale("en");
+});
 
 describe("download customization", () => {
   it("selects the original track and a dubbed track together", () => {
@@ -53,7 +57,7 @@ describe("download customization", () => {
     expect(screen.getByRole("checkbox", { name: "Italian" })).toBeChecked();
   });
 
-  it("shows the applied preset and restores the defaults with Originale", async () => {
+  it("shows the applied preset and restores the defaults with Originale in Italian", async () => {
     const settings = { downloadPresets: [], downloadDir: "downloads", defaultContainer: "mp4", subtitleLanguages: ["en"] } as unknown as Settings;
     const options = { ...optionsFromSettings(settings), container: "mkv" as const, downloadSubtitles: true };
     useApp.setState({ settings, selectedPresets: {} });
@@ -67,6 +71,7 @@ describe("download customization", () => {
     expect(invoke).toHaveBeenCalledWith("settings_update", { settings: { ...settings, downloadPresets: [preset] } });
     expect(screen.getByRole("combobox")).toHaveTextContent("Archive");
     first.unmount();
+    setLocale("it");
 
     const defaults: DownloadPreset = { name: "Originale", options: optionsFromSettings(settings), outputDir: null };
     const onApply = vi.fn();

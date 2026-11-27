@@ -344,6 +344,9 @@ export interface HistoryStats {
 
 export type DuplicatePolicy = "rename" | "overwrite" | "skip";
 
+/** Interface language. "system" follows the operating system language. */
+export type LanguagePreference = "system" | "en" | "it";
+
 export interface Settings {
   downloadDir: string;
   defaultMediaType: MediaType;
@@ -354,6 +357,7 @@ export interface Settings {
   filenameTemplate: string;
   nativeWindowFrame: boolean;
   confirmExitWithActiveDownloads: boolean;
+  language: LanguagePreference;
   maxConcurrentDownloads: number;
   speedLimitKib: number | null;
   retryAttempts: number;

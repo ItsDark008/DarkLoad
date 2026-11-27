@@ -4,7 +4,8 @@ import { AudioTracksField } from "@/components/AudioTracksField";
 import { Input, Label } from "@/components/ui/input";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Segmented, Switch } from "@/components/ui/controls";
-import { AUDIO_BITRATES, AUDIO_FORMATS, AUTOMATIC_AUDIO, CONTAINERS, QUALITY_MODES, singleAudioTrack } from "@/lib/options";
+import { AUDIO_BITRATES, AUTOMATIC_AUDIO, audioFormats, containers, qualityModes, singleAudioTrack } from "@/lib/options";
+import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/stores/app";
 import type { AudioCodecPreference, DownloadOptions, DuplicatePolicy, FormatSummary, MediaFormat, VideoCodecPreference } from "@/types/api";
@@ -45,21 +46,26 @@ function ToggleRow({ label, description, checked, onCheckedChange, disabled }: {
   );
 }
 
-const VIDEO_CODECS: SelectOption<VideoCodecPreference>[] = [
-  { value: "any", label: "No preference" },
-  { value: "av1", label: "AV1" },
-  { value: "vp9", label: "VP9" },
-  { value: "h265", label: "H.265 / HEVC" },
-  { value: "h264", label: "H.264" },
-];
+function videoCodecs(t: (text: string) => string): SelectOption<VideoCodecPreference>[] {
+  return [
+    { value: "any", label: t("No preference") },
+    { value: "av1", label: "AV1" },
+    { value: "vp9", label: "VP9" },
+    { value: "h265", label: "H.265 / HEVC" },
+    { value: "h264", label: "H.264" },
+  ];
+}
 
-const AUDIO_CODECS: SelectOption<AudioCodecPreference>[] = [
-  { value: "any", label: "No preference" },
-  { value: "opus", label: "Opus" },
-  { value: "aac", label: "AAC" },
-];
+function audioCodecs(t: (text: string) => string): SelectOption<AudioCodecPreference>[] {
+  return [
+    { value: "any", label: t("No preference") },
+    { value: "opus", label: "Opus" },
+    { value: "aac", label: "AAC" },
+  ];
+}
 
 export function DownloadOptionsForm({ options, onChange, summary, formats, showGlobal = true, defaultAdvancedOpen = false, audioOnly = false }: Props) {
+  const t = useT();
   const settings = useApp((s) => s.settings);
   const updateSettings = useApp((s) => s.updateSettings);
   const [advanced, setAdvanced] = useState(defaultAdvancedOpen);
@@ -68,12 +74,13 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
   const video = options.mediaType === "video";
   const resolutions = summary?.resolutions ?? [];
   const selectedResolution = resolutions.find((r) => r.height === options.targetHeight) ?? null;
-  const audioFormat = AUDIO_FORMATS.find((f) => f.value === options.audioFormat);
+  const formatChoices = audioFormats();
+  const audioFormat = formatChoices.find((f) => f.value === options.audioFormat);
   const bitrateApplies = !video && options.audioFormat !== "original" && !audioFormat?.lossless;
   const canExact = !summary || resolutions.length > 0;
   const hasAudioSelection = options.audioTracks.original || options.audioTracks.languages.length > 0;
 
-  const qualityOptions: SelectOption<DownloadOptions["qualityMode"]>[] = QUALITY_MODES.map((m) => ({
+  const qualityOptions: SelectOption<DownloadOptions["qualityMode"]>[] = qualityModes().map((m) => ({
     value: m.value,
     label: m.label,
     description: m.description,
@@ -85,19 +92,19 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
   return (
     <div className="space-y-4">
       <Segmented
-        aria-label="Media type"
+        aria-label={t("Media type")}
         value={options.mediaType}
         onValueChange={(mediaType) => onChange({ mediaType, ...(mediaType === "audio" ? { audioTracks: singleAudioTrack(options.audioTracks) } : {}) })}
         options={[
-          { value: "video", label: "Video", icon: <Film />, disabled: audioOnly },
-          { value: "audio", label: "Audio", icon: <Music />, disabled: summary ? !summary.hasAudio : false },
+          { value: "video", label: t("Video"), icon: <Film />, disabled: audioOnly },
+          { value: "audio", label: t("Audio"), icon: <Music />, disabled: summary ? !summary.hasAudio : false },
         ]}
         className="w-full"
       />
 
       {video ? (
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Quality" htmlFor={ids.quality} className="col-span-2">
+          <Field label={t("Quality")} htmlFor={ids.quality} className="col-span-2">
             <Select
               id={ids.quality}
               value={options.qualityMode}
@@ -113,28 +120,28 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
           {options.qualityMode === "exact" ? (
             summary ? (
               <>
-                <Field label="Resolution" htmlFor={ids.resolution}>
+                <Field label={t("Resolution")} htmlFor={ids.resolution}>
                   <Select
                     id={ids.resolution}
                     value={String(options.targetHeight ?? resolutions[0]?.height ?? "")}
                     onValueChange={(v) => onChange({ targetHeight: Number(v), targetFps: null })}
                     options={[
                       ...(options.targetHeight != null && !selectedResolution
-                        ? [{ value: String(options.targetHeight), label: `${options.targetHeight}p (unavailable)`, disabled: true }]
+                        ? [{ value: String(options.targetHeight), label: t("{value} (unavailable)", { value: `${options.targetHeight}p` }), disabled: true }]
                         : []),
                       ...resolutions.map((r) => ({ value: String(r.height), label: `${r.label}${r.hdr ? " · HDR" : ""}` })),
                     ]}
                   />
                 </Field>
-                <Field label="Frame rate" htmlFor={ids.fps}>
+                <Field label={t("Frame rate")} htmlFor={ids.fps}>
                   <Select
                     id={ids.fps}
                     value={options.targetFps == null ? "highest" : String(options.targetFps)}
                     onValueChange={(v) => onChange({ targetFps: v === "highest" ? null : Number(v) })}
                     options={[
-                      { value: "highest", label: "Highest available" },
+                      { value: "highest", label: t("Highest available") },
                       ...(options.targetFps != null && !selectedResolution?.frameRates.includes(options.targetFps)
-                        ? [{ value: String(options.targetFps), label: `${options.targetFps} fps (unavailable)`, disabled: true }]
+                        ? [{ value: String(options.targetFps), label: t("{value} (unavailable)", { value: `${options.targetFps} fps` }), disabled: true }]
                         : []),
                       ...(selectedResolution?.frameRates ?? []).map((fps) => ({ value: String(fps), label: `${fps} fps` })),
                     ]}
@@ -142,7 +149,7 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
                 </Field>
               </>
             ) : (
-              <Field label="Resolution" htmlFor={ids.resolution} className="col-span-2" hint="Analyzed per item; fails clearly if the source does not offer it.">
+              <Field label={t("Resolution")} htmlFor={ids.resolution} className="col-span-2" hint={t("Analyzed per item; fails clearly if the source does not offer it.")}>
                 <Select
                   id={ids.resolution}
                   value={String(options.targetHeight ?? 1080)}
@@ -155,7 +162,7 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
             )
           ) : null}
           {options.qualityMode === "custom" ? (
-            <Field label="Format expression" htmlFor={ids.custom} className="col-span-2" hint="Passed to yt-dlp as -f. Example: 137+140 or bv*[height<=1080]+ba">
+            <Field label={t("Format expression")} htmlFor={ids.custom} className="col-span-2" hint={t("Passed to yt-dlp as -f. Example: 137+140 or bv*[height<=1080]+ba")}>
               <Input
                 id={ids.custom}
                 value={options.customFormat ?? ""}
@@ -166,40 +173,40 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
               />
             </Field>
           ) : null}
-          <Field label="Container" htmlFor={ids.container} className="col-span-2">
+          <Field label={t("Container")} htmlFor={ids.container} className="col-span-2">
             <Select
               id={ids.container}
               value={options.container}
               onValueChange={(container) => onChange({ container })}
-              options={CONTAINERS.map((c) => ({ value: c.value, label: c.label, description: c.description }))}
+              options={containers().map((c) => ({ value: c.value, label: c.label, description: c.description }))}
             />
           </Field>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Format" htmlFor={ids.audioFormat}>
+          <Field label={t("Format")} htmlFor={ids.audioFormat}>
             <Select
               id={ids.audioFormat}
               value={options.audioFormat}
               onValueChange={(audioFormat) => onChange({ audioFormat })}
-              options={AUDIO_FORMATS.map((f) => ({ value: f.value, label: f.label, description: f.lossless ? "Lossless container" : f.value === "original" ? "No re-encoding" : undefined }))}
+              options={formatChoices.map((f) => ({ value: f.value, label: f.label, description: f.lossless ? t("Lossless container") : f.value === "original" ? t("No re-encoding") : undefined }))}
             />
           </Field>
-          <Field label="Bitrate" htmlFor={ids.bitrate}>
+          <Field label={t("Bitrate")} htmlFor={ids.bitrate}>
             <Select
               id={ids.bitrate}
               disabled={!bitrateApplies}
               value={bitrateApplies ? bitrateValue : "best"}
               onValueChange={(v) => onChange({ audioBitrate: v === "best" ? null : v === "custom" ? (options.audioBitrate ?? 160) : Number(v) })}
               options={[
-                { value: "best", label: "Best available" },
+                { value: "best", label: t("Best available") },
                 ...AUDIO_BITRATES.map((b) => ({ value: String(b), label: `${b} kbps` })),
-                { value: "custom", label: "Custom…" },
+                { value: "custom", label: t("Custom…") },
               ]}
             />
           </Field>
           {bitrateApplies && bitrateValue === "custom" ? (
-            <Field label="Custom bitrate (kbps)" className="col-span-2">
+            <Field label={t("Custom bitrate (kbps)")} className="col-span-2">
               <Input
                 type="number"
                 min={32}
@@ -228,7 +235,7 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
         >
           <span className="flex items-center gap-2">
             <SlidersHorizontal className="size-4" />
-            Advanced options
+            {t("Advanced options")}
           </span>
           <ChevronDown className={cn("size-4 transition-transform", advanced && "rotate-180")} />
         </button>
@@ -236,42 +243,42 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
           <div className="space-y-1 border-t border-line px-3 pt-3 pb-2">
             {video ? (
               <div className="grid grid-cols-2 gap-3 pb-2">
-                <Field label="Video codec preference">
-                  <Select aria-label="Video codec preference" value={options.videoCodec} onValueChange={(videoCodec) => onChange({ videoCodec })} options={VIDEO_CODECS} />
+                <Field label={t("Video codec preference")}>
+                  <Select aria-label={t("Video codec preference")} value={options.videoCodec} onValueChange={(videoCodec) => onChange({ videoCodec })} options={videoCodecs(t)} />
                 </Field>
-                <Field label="Audio codec preference">
-                  <Select aria-label="Audio codec preference" value={options.audioCodec} onValueChange={(audioCodec) => onChange({ audioCodec })} options={AUDIO_CODECS} />
+                <Field label={t("Audio codec preference")}>
+                  <Select aria-label={t("Audio codec preference")} value={options.audioCodec} onValueChange={(audioCodec) => onChange({ audioCodec })} options={audioCodecs(t)} />
                 </Field>
               </div>
             ) : (
               <div className="pb-2">
-                <Field label="Source audio preference" hint="Used when several audio streams have similar quality.">
-                  <Select aria-label="Source audio preference" value={options.audioCodec} onValueChange={(audioCodec) => onChange({ audioCodec })} options={AUDIO_CODECS} />
+                <Field label={t("Source audio preference")} hint={t("Used when several audio streams have similar quality.")}>
+                  <Select aria-label={t("Source audio preference")} value={options.audioCodec} onValueChange={(audioCodec) => onChange({ audioCodec })} options={audioCodecs(t)} />
                 </Field>
               </div>
             )}
             <div className="divide-y divide-line">
               {video ? (
                 <ToggleRow
-                  label="Allow HDR"
-                  description="Keep high dynamic range when the source offers it."
+                  label={t("Allow HDR")}
+                  description={t("Keep high dynamic range when the source offers it.")}
                   checked={options.allowHdr}
                   onCheckedChange={(allowHdr) => onChange({ allowHdr })}
                 />
               ) : null}
-              <ToggleRow label="Embed metadata" description="Title, artist or uploader, date and source link." checked={options.embedMetadata} onCheckedChange={(embedMetadata) => onChange({ embedMetadata })} />
-              <ToggleRow label="Embed thumbnail" description="Cover art inside the file where the format supports it." checked={options.embedThumbnail} onCheckedChange={(embedThumbnail) => onChange({ embedThumbnail })} />
-              <ToggleRow label="Save thumbnail file" description="Also save the thumbnail image next to the media." checked={options.writeThumbnail} onCheckedChange={(writeThumbnail) => onChange({ writeThumbnail })} />
-              <ToggleRow label="Embed chapters" checked={options.embedChapters} onCheckedChange={(embedChapters) => onChange({ embedChapters })} />
+              <ToggleRow label={t("Embed metadata")} description={t("Title, artist or uploader, date and source link.")} checked={options.embedMetadata} onCheckedChange={(embedMetadata) => onChange({ embedMetadata })} />
+              <ToggleRow label={t("Embed thumbnail")} description={t("Cover art inside the file where the format supports it.")} checked={options.embedThumbnail} onCheckedChange={(embedThumbnail) => onChange({ embedThumbnail })} />
+              <ToggleRow label={t("Save thumbnail file")} description={t("Also save the thumbnail image next to the media.")} checked={options.writeThumbnail} onCheckedChange={(writeThumbnail) => onChange({ writeThumbnail })} />
+              <ToggleRow label={t("Embed chapters")} checked={options.embedChapters} onCheckedChange={(embedChapters) => onChange({ embedChapters })} />
               {video ? (
                 <>
-                  <ToggleRow label="Download subtitles" checked={options.downloadSubtitles} onCheckedChange={(downloadSubtitles) => onChange({ downloadSubtitles })} />
+                  <ToggleRow label={t("Download subtitles")} checked={options.downloadSubtitles} onCheckedChange={(downloadSubtitles) => onChange({ downloadSubtitles })} />
                   {options.downloadSubtitles ? (
                     <>
-                      <ToggleRow label="Embed subtitles" description="Store subtitles inside MP4, MKV or WebM." checked={options.embedSubtitles} onCheckedChange={(embedSubtitles) => onChange({ embedSubtitles })} />
-                      <ToggleRow label="Include automatic captions" checked={options.includeAutoSubtitles} onCheckedChange={(includeAutoSubtitles) => onChange({ includeAutoSubtitles })} />
+                      <ToggleRow label={t("Embed subtitles")} description={t("Store subtitles inside MP4, MKV or WebM.")} checked={options.embedSubtitles} onCheckedChange={(embedSubtitles) => onChange({ embedSubtitles })} />
+                      <ToggleRow label={t("Include automatic captions")} checked={options.includeAutoSubtitles} onCheckedChange={(includeAutoSubtitles) => onChange({ includeAutoSubtitles })} />
                       <div className="py-2">
-                        <Field label="Subtitle languages" htmlFor={ids.langs} hint="Comma-separated codes, for example en, de, pt-BR, or all.">
+                        <Field label={t("Subtitle languages")} htmlFor={ids.langs} hint={t("Comma-separated codes, for example en, de, pt-BR, or all.")}>
                           <Input
                             key={options.subtitleLanguages.join(",")}
                             id={ids.langs}
@@ -293,7 +300,7 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
               ) : null}
             </div>
             <div className="py-2">
-              <Field label="Filename template" htmlFor={ids.template} hint="yt-dlp template fields, ending in .%(ext)s. Leave empty to use the default from Settings.">
+              <Field label={t("Filename template")} htmlFor={ids.template} hint={t("yt-dlp template fields, ending in .%(ext)s. Leave empty to use the default from Settings.")}>
                 <Input
                   id={ids.template}
                   className="font-mono"
@@ -306,12 +313,12 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
             </div>
             {showGlobal && settings ? (
               <div className="grid grid-cols-2 gap-3 border-t border-line pt-3 pb-2">
-                <Field label="Speed limit (KiB/s)" htmlFor={ids.speed} hint="Applies to all downloads. Empty for unlimited.">
+                <Field label={t("Speed limit (KiB/s)")} htmlFor={ids.speed} hint={t("Applies to all downloads. Empty for unlimited.")}>
                   <Input
                     id={ids.speed}
                     type="number"
                     min={16}
-                    placeholder="Unlimited"
+                    placeholder={t("Unlimited")}
                     defaultValue={settings.speedLimitKib ?? ""}
                     onBlur={(e) => {
                       const raw = e.target.value.trim();
@@ -320,15 +327,15 @@ export function DownloadOptionsForm({ options, onChange, summary, formats, showG
                     }}
                   />
                 </Field>
-                <Field label="When a file exists" hint="Applies to all downloads.">
+                <Field label={t("When a file exists")} hint={t("Applies to all downloads.")}>
                   <Select<DuplicatePolicy>
-                    aria-label="Duplicate handling"
+                    aria-label={t("Duplicate handling")}
                     value={settings.duplicatePolicy}
                     onValueChange={(duplicatePolicy) => void updateSettings({ duplicatePolicy })}
                     options={[
-                      { value: "rename", label: "Keep both" },
-                      { value: "skip", label: "Skip" },
-                      { value: "overwrite", label: "Overwrite" },
+                      { value: "rename", label: t("Keep both") },
+                      { value: "skip", label: t("Skip") },
+                      { value: "overwrite", label: t("Overwrite") },
                     ]}
                   />
                 </Field>

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { toast } from "sonner";
+import { resolveLocale, setLocale, t } from "@/i18n";
 import { api } from "@/services/api";
 import type { AppInfo, DependencyStatus, DepId, InstallProgress, Settings, UpdateInfo } from "@/types/api";
 
@@ -73,7 +74,7 @@ export const useApp = create<AppStore>((set, get) => ({
         return true;
       } catch (error) {
         const e = error as { message?: string };
-        toast.error("Setting not saved", { description: e.message });
+        toast.error(t("Setting not saved"), { description: e.message });
         return false;
       }
     });
@@ -94,12 +95,12 @@ export const useApp = create<AppStore>((set, get) => ({
     try {
       const deps = await api.depsInstall(ids, repair);
       set({ deps, depsLoaded: true });
-      toast.success(repair ? "Components repaired" : "Components installed", {
-        description: "All selected components were verified and installed.",
+      toast.success(repair ? t("Components repaired") : t("Components installed"), {
+        description: t("All selected components were verified and installed."),
       });
     } catch (error) {
       const e = error as { message?: string };
-      toast.error("Installation failed", { description: e.message });
+      toast.error(t("Installation failed"), { description: e.message });
     } finally {
       set({ installing: false });
     }
@@ -120,6 +121,11 @@ export const useApp = create<AppStore>((set, get) => ({
       .catch(() => set({ depsLoaded: true }));
   },
 }));
+
+// Keep the interface language in step with the saved preference, before anything re-renders.
+useApp.subscribe((state, previous) => {
+  if (state.settings && state.settings.language !== previous.settings?.language) setLocale(resolveLocale(state.settings.language));
+});
 
 export function missingRequiredDeps(deps: DependencyStatus[]): DependencyStatus[] {
   return deps.filter((d) => d.required && !d.available);

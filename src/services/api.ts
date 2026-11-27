@@ -1,5 +1,6 @@
 // Typed bridge to the Rust backend. Every IPC call goes through this module.
 import { invoke } from "@tauri-apps/api/core";
+import { t, tr } from "@/i18n";
 import type {
   Analysis,
   AppError,
@@ -27,12 +28,12 @@ export function toAppError(error: unknown): AppError {
     const e = error as Partial<AppError>;
     return {
       code: e.code ?? "internal",
-      message: String(e.message ?? "Something went wrong."),
+      message: e.message == null ? t("Something went wrong.") : tr(String(e.message)),
       detail: e.detail ?? null,
       retryable: Boolean(e.retryable),
     };
   }
-  const message = typeof error === "string" ? error : error instanceof Error ? error.message : "Something went wrong.";
+  const message = typeof error === "string" ? tr(error) : error instanceof Error ? error.message : t("Something went wrong.");
   return { code: "internal", message, detail: null, retryable: false };
 }
 

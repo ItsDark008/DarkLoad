@@ -2,7 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, Ban, CheckCircle2, Clock, Loader2, PauseCircle, Scissors, Sparkles, XCircle, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/controls";
 import { Button } from "@/components/ui/button";
-import { STATE_LABELS } from "@/lib/options";
+import { t, useT } from "@/i18n";
+import { stateLabel } from "@/lib/options";
 import { cn } from "@/lib/utils";
 import type { JobState } from "@/types/api";
 
@@ -19,12 +20,13 @@ const STATE_META: Record<JobState, { tone: "neutral" | "accent" | "success" | "w
 };
 
 export function StatusBadge({ state, className }: { state: JobState; className?: string }) {
+  useT();
   const meta = STATE_META[state];
   const Icon = meta.icon;
   return (
     <Badge tone={meta.tone} className={className}>
       <Icon className={cn(meta.spin && "animate-spin")} />
-      {STATE_LABELS[state]}
+      {stateLabel(state)}
     </Badge>
   );
 }
@@ -117,12 +119,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode; fallbackTitl
       <div className="flex h-full items-center justify-center p-8">
         <div className="max-w-md rounded-xl border border-line bg-card p-6 text-center">
           <XCircle className="mx-auto mb-3 size-6 text-danger" />
-          <h2 className="text-[15px] font-semibold">{this.props.fallbackTitle ?? "This view ran into a problem"}</h2>
+          <h2 className="text-[15px] font-semibold">{this.props.fallbackTitle ?? t("This view ran into a problem")}</h2>
           <p className="mt-2 text-[13px] text-fg-2" data-selectable>
             {this.state.error.message}
           </p>
           <Button className="mt-5" variant="primary" onClick={() => this.setState({ error: null })}>
-            Try again
+            {t("Try again")}
           </Button>
         </div>
       </div>

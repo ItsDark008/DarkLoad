@@ -1,4 +1,5 @@
 // Display formatting helpers. All functions are pure and covered by unit tests.
+import { intlLocale, t } from "@/i18n";
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 
@@ -50,14 +51,14 @@ export function formatPercent(fraction: number | null | undefined): string {
 
 export function formatDate(ms: number | null | undefined): string {
   if (ms == null) return "—";
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
+  return new Intl.DateTimeFormat(intlLocale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
 }
 
 export function formatRelative(ms: number | null | undefined, now: number = Date.now()): string {
   if (ms == null) return "—";
   const diff = Math.round((now - ms) / 1000);
-  if (diff < 45) return "just now";
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  if (diff < 45) return t("just now");
+  const rtf = new Intl.RelativeTimeFormat(intlLocale(), { numeric: "auto" });
   const minutes = Math.round(diff / 60);
   if (minutes < 60) return rtf.format(-minutes, "minute");
   const hours = Math.round(minutes / 60);
@@ -68,7 +69,7 @@ export function formatRelative(ms: number | null | undefined, now: number = Date
 }
 
 export function formatCount(n: number): string {
-  return new Intl.NumberFormat("en-US").format(n);
+  return new Intl.NumberFormat(intlLocale()).format(n);
 }
 
 export function formatBitrate(kbps: number | null | undefined): string {
@@ -88,10 +89,10 @@ const CODEC_LABELS: Record<string, string> = {
   mp3: "MP3",
   flac: "FLAC",
   ac3: "Dolby Digital",
-  other: "Other",
 };
 
 export function codecLabel(codec: string): string {
+  if (codec === "other") return t("Other");
   return CODEC_LABELS[codec] ?? codec.toUpperCase();
 }
 

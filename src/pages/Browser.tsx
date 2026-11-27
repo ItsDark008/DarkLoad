@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/controls";
 import { Dialog, DialogContent } from "@/components/ui/overlays";
 import { formatDuration } from "@/lib/format";
-import { AUDIO_FORMATS, CONTAINERS, QUALITY_MODES, optionsForPlatform, optionsFromSettings } from "@/lib/options";
+import { audioFormats, containers, optionsForPlatform, optionsFromSettings, qualityModes } from "@/lib/options";
+import { t, useT } from "@/i18n";
 import { api, events } from "@/services/api";
 import { useApp } from "@/stores/app";
 import { MAX_BROWSER_SELECTION, useBrowser } from "@/stores/browser";
@@ -38,14 +39,14 @@ function isPlaylist(url: string): boolean {
 function onBlocked(url: string) {
   const host = hostOf(url);
   if (host === "accounts.google.com") {
-    toast.message("Signing in isn't available here", {
-      description: "DarkLoad's browser stays signed out. Public videos work without an account.",
+    toast.message(t("Signing in isn't available here"), {
+      description: t("DarkLoad's browser stays signed out. Public videos work without an account."),
     });
     return;
   }
-  toast.message("This link leads outside YouTube", {
+  toast.message(t("This link leads outside YouTube"), {
     description: host ?? url,
-    action: { label: "Open in browser", onClick: () => void api.browserOpenBlocked().catch(() => undefined) },
+    action: { label: t("Open in browser"), onClick: () => void api.browserOpenBlocked().catch(() => undefined) },
   });
 }
 
@@ -133,15 +134,16 @@ function useBrowserPlacement(target: RefObject<HTMLDivElement | null>, onError: 
 
 function optionsSummary(options: DownloadOptions): string {
   if (options.mediaType === "audio") {
-    const format = AUDIO_FORMATS.find((f) => f.value === options.audioFormat)?.label ?? options.audioFormat;
-    return `Audio · ${format}`;
+    const format = audioFormats().find((f) => f.value === options.audioFormat)?.label ?? options.audioFormat;
+    return `${t("Audio")} · ${format}`;
   }
-  const quality = QUALITY_MODES.find((q) => q.value === options.qualityMode)?.label ?? options.qualityMode;
-  const container = CONTAINERS.find((c) => c.value === options.container)?.label ?? options.container;
-  return `Video · ${quality} · ${container}`;
+  const quality = qualityModes().find((q) => q.value === options.qualityMode)?.label ?? options.qualityMode;
+  const container = containers().find((c) => c.value === options.container)?.label ?? options.container;
+  return `${t("Video")} · ${quality} · ${container}`;
 }
 
 function Toolbar() {
+  useT();
   const url = useBrowser((s) => s.url);
   const loading = useBrowser((s) => s.loading);
   const current = useBrowser((s) => s.current);
@@ -152,28 +154,28 @@ function Toolbar() {
   const [draft, setDraft] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
-  const run = (action: () => Promise<void>) => void action().catch((e: AppError) => toast.error("The browser could not do that", { description: e.message }));
+  const run = (action: () => Promise<void>) => void action().catch((e: AppError) => toast.error(t("The browser could not do that"), { description: e.message }));
   const playlist = isPlaylist(url);
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-sidebar px-3">
-      <Tooltip content="Back">
-        <Button size="icon-sm" variant="ghost" aria-label="Back" onClick={() => run(api.browserBack)}>
+      <Tooltip content={t("Back")}>
+        <Button size="icon-sm" variant="ghost" aria-label={t("Back")} onClick={() => run(api.browserBack)}>
           <ArrowLeft />
         </Button>
       </Tooltip>
-      <Tooltip content="Forward">
-        <Button size="icon-sm" variant="ghost" aria-label="Forward" onClick={() => run(api.browserForward)}>
+      <Tooltip content={t("Forward")}>
+        <Button size="icon-sm" variant="ghost" aria-label={t("Forward")} onClick={() => run(api.browserForward)}>
           <ArrowRight />
         </Button>
       </Tooltip>
-      <Tooltip content="Reload">
-        <Button size="icon-sm" variant="ghost" aria-label="Reload" onClick={() => run(api.browserReload)}>
+      <Tooltip content={t("Reload")}>
+        <Button size="icon-sm" variant="ghost" aria-label={t("Reload")} onClick={() => run(api.browserReload)}>
           {loading ? <Loader2 className="animate-spin" /> : <RotateCw />}
         </Button>
       </Tooltip>
-      <Tooltip content="YouTube home">
-        <Button size="icon-sm" variant="ghost" aria-label="YouTube home" onClick={() => run(() => api.browserNavigate(""))}>
+      <Tooltip content={t("YouTube home")}>
+        <Button size="icon-sm" variant="ghost" aria-label={t("YouTube home")} onClick={() => run(() => api.browserNavigate(""))}>
           <Home />
         </Button>
       </Tooltip>
@@ -199,8 +201,8 @@ function Toolbar() {
           onKeyDown={(e) => {
             if (e.key === "Escape") input.current?.blur();
           }}
-          placeholder="Search YouTube or paste a YouTube link"
-          aria-label="Search YouTube or enter a YouTube address"
+          placeholder={t("Search YouTube or paste a YouTube link")}
+          aria-label={t("Search YouTube or enter a YouTube address")}
           spellCheck={false}
         />
       </form>
@@ -210,16 +212,16 @@ function Toolbar() {
           variant={selected ? "secondary" : "primary"}
           onClick={() => {
             if (selected) remove(current.id);
-            else if (!add(current)) toast.error(`Select at most ${MAX_BROWSER_SELECTION} videos at a time`);
+            else if (!add(current)) toast.error(t("Select at most {count} videos at a time", { count: MAX_BROWSER_SELECTION }));
           }}
         >
-          {selected ? <Check /> : <Plus />} {selected ? "Selected" : "Select this video"}
+          {selected ? <Check /> : <Plus />} {selected ? t("Selected") : t("Select this video")}
         </Button>
       ) : null}
       {current || playlist ? (
-        <Tooltip content={playlist ? "Analyze this playlist in the Downloader" : "Analyze this video in the Downloader"}>
+        <Tooltip content={playlist ? t("Analyze this playlist in the Downloader") : t("Analyze this video in the Downloader")}>
           <Button size="sm" variant="ghost" onClick={() => openInDownloader(playlist || !current ? url : current.url)}>
-            <ArrowDownToLine /> Open in Downloader
+            <ArrowDownToLine /> {t("Open in Downloader")}
           </Button>
         </Tooltip>
       ) : null}
@@ -228,6 +230,7 @@ function Toolbar() {
 }
 
 function SelectionRow({ video, onRemove }: { video: BrowserVideo; onRemove: () => void }) {
+  useT();
   const meta = [video.uploader, video.duration ? formatDuration(video.duration) : null].filter(Boolean).join(" · ");
   return (
     <li className="group flex items-center gap-3 px-4 py-2 hover:bg-card">
@@ -238,7 +241,7 @@ function SelectionRow({ video, onRemove }: { video: BrowserVideo; onRemove: () =
         </div>
         {meta ? <div className="truncate text-xs text-fg-2">{meta}</div> : null}
       </div>
-      <Button size="icon-sm" variant="ghost" aria-label={`Remove ${video.title ?? video.id}`} className="opacity-60 group-hover:opacity-100" onClick={onRemove}>
+      <Button size="icon-sm" variant="ghost" aria-label={t("Remove {title}", { title: video.title ?? video.id })} className="opacity-60 group-hover:opacity-100" onClick={onRemove}>
         <X />
       </Button>
     </li>
@@ -246,6 +249,7 @@ function SelectionRow({ video, onRemove }: { video: BrowserVideo; onRemove: () =
 }
 
 function SelectionTray() {
+  useT();
   const settings = useApp((s) => s.settings);
   const navigate = useApp((s) => s.navigate);
   const { selection, remove, clear, options, setOptions, outputDir, setOutputDir } = useBrowser();
@@ -270,27 +274,27 @@ function SelectionTray() {
     try {
       const jobs = await api.enqueue(requests);
       clear();
-      toast.success(`${jobs.length} ${jobs.length === 1 ? "download" : "downloads"} added to the queue`, {
-        action: { label: "View queue", onClick: () => navigate("queue") },
+      toast.success(jobs.length === 1 ? t("1 download added to the queue") : t("{count} downloads added to the queue", { count: jobs.length }), {
+        action: { label: t("View queue"), onClick: () => navigate("queue") },
       });
     } catch (e) {
-      toast.error("Could not add downloads", { description: (e as AppError).message });
+      toast.error(t("Could not add downloads"), { description: (e as AppError).message });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <aside aria-label="Selected videos" className="flex w-[340px] shrink-0 flex-col border-l border-line bg-sidebar">
+    <aside aria-label={t("Selected videos")} className="flex w-[340px] shrink-0 flex-col border-l border-line bg-sidebar">
       <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-line px-4">
         <div className="min-w-0">
-          <div className="text-[13px] font-semibold text-fg">Selected videos</div>
+          <div className="text-[13px] font-semibold text-fg">{t("Selected videos")}</div>
           <div className="tabular text-xs text-fg-2">
-            {selection.length === 0 ? "None yet" : `${selection.length} of ${MAX_BROWSER_SELECTION}`}
+            {selection.length === 0 ? t("None yet") : t("{done} of {total}", { done: selection.length, total: MAX_BROWSER_SELECTION })}
           </div>
         </div>
         <Button size="sm" variant="ghost" disabled={selection.length === 0} onClick={clear}>
-          <Trash2 /> Clear
+          <Trash2 /> {t("Clear")}
         </Button>
       </div>
 
@@ -298,8 +302,8 @@ function SelectionTray() {
         {selection.length === 0 ? (
           <EmptyState
             icon={MousePointerClick}
-            title="Pick videos as you browse"
-            description="Hover a thumbnail and tick its box, or open a video and choose Select this video. Your picks gather here."
+            title={t("Pick videos as you browse")}
+            description={t("Hover a thumbnail and tick its box, or open a video and choose Select this video. Your picks gather here.")}
           />
         ) : (
           <ul className="py-1">
@@ -313,32 +317,32 @@ function SelectionTray() {
       <div className="shrink-0 space-y-3 border-t border-line p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-xs font-medium text-fg-2">Download as</div>
+            <div className="text-xs font-medium text-fg-2">{t("Download as")}</div>
             <div className="truncate text-[13px] text-fg">{effective ? optionsSummary(effective) : "…"}</div>
           </div>
           <Button size="sm" disabled={!effective} onClick={() => setEditing(true)}>
-            <Settings2 /> Settings
+            <Settings2 /> {t("Settings")}
           </Button>
         </div>
         <div>
-          <div className="mb-1.5 text-xs font-medium text-fg-2">Save to</div>
+          <div className="mb-1.5 text-xs font-medium text-fg-2">{t("Save to")}</div>
           <OutputFolder value={folder} onChange={setOutputDir} />
         </div>
         <Button variant="primary" size="lg" className="w-full" disabled={selection.length === 0 || submitting || !effective} onClick={() => void download()}>
           {submitting ? <Loader2 className="animate-spin" /> : <Download />}
-          {selection.length === 0 ? "Download" : `Download ${selection.length} ${selection.length === 1 ? "video" : "videos"}`}
+          {selection.length === 0 ? t("Download") : selection.length === 1 ? t("Download 1 video") : t("Download {count} videos", { count: selection.length })}
         </Button>
       </div>
 
       <Dialog open={editing} onOpenChange={setEditing}>
         {effective ? (
           <DialogContent
-            title="Download settings"
-            description="These settings apply to every selected video. Audio tracks are checked for each video."
+            title={t("Download settings")}
+            description={t("These settings apply to every selected video. Audio tracks are checked for each video.")}
             className="w-[min(760px,calc(100vw-48px))]"
             footer={
               <Button variant="primary" onClick={() => setEditing(false)}>
-                Done
+                {t("Done")}
               </Button>
             }
           >
@@ -355,6 +359,7 @@ function SelectionTray() {
 }
 
 export function BrowserPage() {
+  useT();
   const viewport = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -370,16 +375,16 @@ export function BrowserPage() {
             {error ? (
               <div className="max-w-sm text-center">
                 <AlertCircle className="mx-auto mb-3 size-6 text-danger" />
-                <p className="text-[14px] font-medium text-fg">The browser could not open</p>
+                <p className="text-[14px] font-medium text-fg">{t("The browser could not open")}</p>
                 <p className="mt-1 text-[13px] text-fg-2" data-selectable>
                   {error.message}
                 </p>
                 <Button className="mt-4" onClick={() => setAttempt((n) => n + 1)}>
-                  Try again
+                  {t("Try again")}
                 </Button>
               </div>
             ) : (
-              <Loader2 className="size-5 animate-spin text-fg-2" aria-label="Opening YouTube" />
+              <Loader2 className="size-5 animate-spin text-fg-2" aria-label={t("Opening YouTube")} />
             )}
           </div>
         </div>

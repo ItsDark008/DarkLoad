@@ -24,22 +24,27 @@ import { cn, modKey } from "@/lib/utils";
 import { depsHealth, useApp, type Page } from "@/stores/app";
 import { summarize, useQueue } from "@/stores/queue";
 import { formatPercent } from "@/lib/format";
+import { useT } from "@/i18n";
 
 type NavItem = { page: Page; label: string; icon: LucideIcon; key: string };
 
-const WORKSPACE_NAV: NavItem[] = [
-  { page: "overview", label: "Overview", icon: LayoutGrid, key: "1" },
-  { page: "downloader", label: "Downloader", icon: ArrowDownToLine, key: "2" },
-  { page: "batch", label: "Batch Download", icon: Layers, key: "3" },
-  { page: "browser", label: "YouTube Browser", icon: Globe, key: "4" },
-  { page: "queue", label: "Download Queue", icon: ListVideo, key: "5" },
-  { page: "history", label: "History", icon: History, key: "6" },
-];
+function workspaceNav(t: (text: string) => string): NavItem[] {
+  return [
+    { page: "overview", label: t("Overview"), icon: LayoutGrid, key: "1" },
+    { page: "downloader", label: t("Downloader"), icon: ArrowDownToLine, key: "2" },
+    { page: "batch", label: t("Batch Download"), icon: Layers, key: "3" },
+    { page: "browser", label: t("YouTube Browser"), icon: Globe, key: "4" },
+    { page: "queue", label: t("Download Queue"), icon: ListVideo, key: "5" },
+    { page: "history", label: t("History"), icon: History, key: "6" },
+  ];
+}
 
-const APP_NAV: NavItem[] = [
-  { page: "settings", label: "Settings", icon: SettingsIcon, key: "7" },
-  { page: "about", label: "About", icon: Info, key: "8" },
-];
+function appNav(t: (text: string) => string): NavItem[] {
+  return [
+    { page: "settings", label: t("Settings"), icon: SettingsIcon, key: "7" },
+    { page: "about", label: t("About"), icon: Info, key: "8" },
+  ];
+}
 
 function useMaximized(enabled: boolean) {
   const [maximized, setMaximized] = useState(false);
@@ -64,6 +69,7 @@ async function requestClose() {
 }
 
 function TitleBar() {
+  const t = useT();
   const maximized = useMaximized(true);
   const jobs = useQueue((s) => s.jobs);
   const summary = summarize(jobs);
@@ -78,18 +84,18 @@ function TitleBar() {
         </span>
         {summary.active > 0 ? (
           <span data-tauri-drag-region className="tabular text-fg-2">
-            · {summary.running} active{summary.fraction != null ? ` · ${formatPercent(summary.fraction)}` : ""}
+            · {t("{count} active", { count: summary.running })}{summary.fraction != null ? ` · ${formatPercent(summary.fraction)}` : ""}
           </span>
         ) : null}
       </div>
       <div className="flex h-full">
-        <button type="button" aria-label="Minimize" className={control} onClick={() => void win.minimize()}>
+        <button type="button" aria-label={t("Minimize")} className={control} onClick={() => void win.minimize()}>
           <Minus className="size-4" strokeWidth={1.5} />
         </button>
-        <button type="button" aria-label={maximized ? "Restore" : "Maximize"} className={control} onClick={() => void win.toggleMaximize()}>
+        <button type="button" aria-label={maximized ? t("Restore") : t("Maximize")} className={control} onClick={() => void win.toggleMaximize()}>
           {maximized ? <Copy className="size-3.5 -scale-x-100" strokeWidth={1.5} /> : <Square className="size-3.5" strokeWidth={1.5} />}
         </button>
-        <button type="button" aria-label="Close" className={cn(control, "hover:bg-danger hover:text-white")} onClick={() => void requestClose()}>
+        <button type="button" aria-label={t("Close")} className={cn(control, "hover:bg-danger hover:text-white")} onClick={() => void requestClose()}>
           <X className="size-4" strokeWidth={1.5} />
         </button>
       </div>
@@ -103,6 +109,7 @@ function TitleBar() {
 }
 
 function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const t = useT();
   const page = useApp((s) => s.page);
   const navigate = useApp((s) => s.navigate);
   const deps = useApp((s) => s.deps);
@@ -113,10 +120,10 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   const active = summarize(jobs).active;
   const health = depsLoaded ? depsHealth(deps) : "unknown";
   const healthLabel = {
-    ok: "Components ready",
-    warning: "Component attention",
-    error: "Setup required",
-    unknown: "Checking components",
+    ok: t("Components ready"),
+    warning: t("Component attention"),
+    error: t("Setup required"),
+    unknown: t("Checking components"),
   }[health];
   const healthColor = { ok: "bg-success", warning: "bg-warning", error: "bg-danger", unknown: "bg-muted" }[health];
 
@@ -158,7 +165,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
 
   return (
     <nav
-      aria-label="Main"
+      aria-label={t("Main")}
       className={cn(
         "flex shrink-0 flex-col border-r border-line bg-sidebar transition-[width] duration-200 ease-out",
         collapsed ? "w-[60px]" : "w-[228px]",
@@ -170,28 +177,28 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
       </div>
 
       <div className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-1", collapsed ? "px-2" : "px-3")}>
-        <ul aria-label="Download workspace" className="flex shrink-0 flex-col gap-0.5">
-          {WORKSPACE_NAV.map(renderNavItem)}
+        <ul aria-label={t("Download workspace")} className="flex shrink-0 flex-col gap-0.5">
+          {workspaceNav(t).map(renderNavItem)}
         </ul>
-        <ul aria-label="Application" className="mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line pt-2 pb-1">
-          {APP_NAV.map(renderNavItem)}
+        <ul aria-label={t("Application")} className="mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line pt-2 pb-1">
+          {appNav(t).map(renderNavItem)}
         </ul>
       </div>
 
       <div className={cn("flex shrink-0 flex-col gap-1 border-t border-line py-3", collapsed ? "items-center px-2" : "px-3")}>
         {update?.available ? (
-          <Tooltip content={`Version ${update.version} is available`} side="right" disabled={!collapsed}>
+          <Tooltip content={t("Version {version} is available", { version: update.version ?? "" })} side="right" disabled={!collapsed}>
             <button
               type="button"
               onClick={() => navigate("settings", "updates")}
-              aria-label={collapsed ? `Update ${update.version} available` : undefined}
+              aria-label={collapsed ? t("Update {version} available", { version: update.version ?? "" }) : undefined}
               className={cn(
                 "flex h-8 items-center gap-2.5 rounded-md text-xs font-medium text-accent-hover transition-colors hover:bg-card",
                 collapsed ? "w-9 justify-center" : "w-full px-2.5",
               )}
             >
               <CircleArrowUp className="size-4 shrink-0" />
-              {!collapsed ? <span className="truncate">Update {update.version} available</span> : null}
+              {!collapsed ? <span className="truncate">{t("Update {version} available", { version: update.version ?? "" })}</span> : null}
             </button>
           </Tooltip>
         ) : null}
@@ -210,11 +217,11 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         </Tooltip>
         <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "justify-between pl-2.5")}>
           {!collapsed ? <span className="tabular text-[11px] text-muted">v{info?.version ?? "…"}</span> : null}
-          <Tooltip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right" shortcut={`${modKey}+B`}>
+          <Tooltip content={collapsed ? t("Expand sidebar") : t("Collapse sidebar")} side="right" shortcut={`${modKey}+B`}>
             <button
               type="button"
               onClick={onToggle}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
               className="flex size-8 items-center justify-center rounded-md text-fg-2 transition-colors hover:bg-card hover:text-fg"
             >
               {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}

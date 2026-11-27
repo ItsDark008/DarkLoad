@@ -53,6 +53,7 @@ It is a native desktop application built with Tauri and Rust, with a pure-black 
 - OLED-first design with an optional dark theme, accent color, density and animation preferences.
 - Collapsible sidebar, custom title bar (or the system frame), remembered window size and position.
 - Full keyboard navigation and shortcuts, reduced-motion support and accessible contrast.
+- Available in English and Italian, following the system language by default.
 
 ![YouTube Browser with three Blender open movies ticked on their thumbnails and gathered in the selection panel, ready to download together](docs/screenshots/youtube-browser.jpg)
 
