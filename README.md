@@ -54,6 +54,8 @@ It is a native desktop application built with Tauri and Rust, with a pure-black 
 - Collapsible sidebar, custom title bar (or the system frame), remembered window size and position.
 - Full keyboard navigation and shortcuts, reduced-motion support and accessible contrast.
 
+![YouTube Browser with three Blender open movies ticked on their thumbnails and gathered in the selection panel, ready to download together](docs/screenshots/youtube-browser.jpg)
+
 | Queue with separate download and conversion progress | Local history |
 | --- | --- |
 | ![Download Queue](docs/screenshots/queue.jpg) | ![History](docs/screenshots/history.jpg) |
