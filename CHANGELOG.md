@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-27
+
+### Fixed
+
+- YouTube Browser on Linux: videos play again in the AppImage, which showed "Your browser can't play this video" in 1.4.1. The AppImage now bundles the codecs YouTube uses (H.264, AAC, AV1, VP9 and Opus), which also makes it larger.
+
 ## [1.4.1] - 2026-11-27
 
 ### Fixed

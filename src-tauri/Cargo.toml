@@ -1,6 +1,6 @@
 [package]
 name = "darkload"
-version = "1.4.1"
+version = "1.4.2"
 description = "One link. Maximum quality."
 authors = ["ItsDark008"]
 license = "MIT"
