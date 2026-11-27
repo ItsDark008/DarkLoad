@@ -762,6 +762,7 @@ dependencies = [
  "chrono",
  "fs4",
  "futures-util",
+ "gtk",
  "hex",
  "libc",
  "regex",

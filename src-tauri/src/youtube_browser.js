@@ -156,7 +156,9 @@
       pill.hidden = current == null;
       const on = current != null && selected.has(current);
       pill.setAttribute("aria-pressed", String(on));
-      pill.lastChild.textContent = on ? TEXT.selected : TEXT.select;
+      // Replacing the text node mid-click makes WebKitGTK drop the click, and re-triggers the observer.
+      const label = on ? TEXT.selected : TEXT.select;
+      if (pill.lastChild.textContent !== label) pill.lastChild.textContent = label;
     }
   };
 

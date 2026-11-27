@@ -173,6 +173,8 @@ impl YoutubeBrowser {
         }
         if let Some(webview) = self.webview() {
             webview.set_bounds(rect)?;
+            #[cfg(target_os = "linux")]
+            place(&webview, bounds)?;
             webview.show()?;
             return Ok(());
         }
@@ -181,6 +183,8 @@ impl YoutubeBrowser {
             .get_window(MAIN)
             .ok_or_else(|| AppError::internal("The main window is not available."))?;
         let webview = window.add_child(self.builder(), rect.position, rect.size)?;
+        #[cfg(target_os = "linux")]
+        place(&webview, bounds)?;
         let mut inner = self.lock();
         // The page may have been left while the webview was being created.
         if !inner.visible {
@@ -209,6 +213,8 @@ impl YoutubeBrowser {
         let rect = bounds.rect()?;
         if let Some(webview) = self.webview() {
             webview.set_bounds(rect)?;
+            #[cfg(target_os = "linux")]
+            place(&webview, bounds)?;
         }
         Ok(())
     }
@@ -346,6 +352,41 @@ impl YoutubeBrowser {
                 }
             })
     }
+}
+
+/// On Linux, Tauri packs child webviews into the window's GtkBox next to the main webview and
+/// ignores their bounds. The browser is moved once into a GtkOverlay above the main webview and
+/// positioned with margins.
+#[cfg(target_os = "linux")]
+fn place(webview: &Webview, bounds: Bounds) -> AppResult<()> {
+    use gtk::prelude::*;
+    webview.with_webview(move |platform| {
+        let child: gtk::Widget = platform.inner().upcast();
+        if let Some(vbox) = child.parent().and_then(|p| p.downcast::<gtk::Box>().ok()) {
+            let main = vbox
+                .children()
+                .into_iter()
+                .find(|w| *w != child && w.type_().name() == "WebKitWebView");
+            if let Some(main) = main {
+                let overlay = gtk::Overlay::new();
+                vbox.remove(&main);
+                vbox.remove(&child);
+                overlay.add(&main);
+                overlay.add_overlay(&child);
+                child.set_halign(gtk::Align::Start);
+                child.set_valign(gtk::Align::Start);
+                vbox.pack_start(&overlay, true, true, 0);
+                overlay.show();
+            }
+        }
+        child.set_margin_start(bounds.x.round() as i32);
+        child.set_margin_top(bounds.y.round() as i32);
+        child.set_size_request(
+            bounds.width.round().max(1.0) as i32,
+            bounds.height.round().max(1.0) as i32,
+        );
+    })?;
+    Ok(())
 }
 
 fn sync_script(ids: &[String]) -> String {
