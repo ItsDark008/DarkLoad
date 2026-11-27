@@ -42,6 +42,7 @@ It is a native desktop application built with Tauri and Rust, with a pure-black 
 
 **Workflow**
 - Downloader with clipboard paste, automatic platform detection and a live preview of the selected streams.
+- YouTube Browser: browse YouTube inside DarkLoad, tick videos straight on their thumbnails (or select the one you are watching) and download every pick at once with the quality you choose.
 - Batch Download: paste text, import a `.txt` file or drag and drop a list; duplicates are removed automatically; analyze many links in parallel and customize any item.
 - Playlists and multi-video Instagram posts: pick individual entries or download all of them.
 - Download Queue controlled by the Rust backend: configurable concurrency, real download speed and ETA, **separate merge and conversion progress measured from FFmpeg**, pause and resume, cancel, retry, automatic retries for network errors, reordering, desktop notifications, and persistence across restarts.
@@ -103,7 +104,7 @@ On first launch DarkLoad offers to install its components (yt-dlp, FFmpeg/FFprob
 
 DarkLoad has no telemetry, analytics, tracking, advertisements or cloud synchronization. It contacts the platforms you use, GitHub when you install or update components or check for app updates, and thumbnail servers for media you analyze. Clipboard monitoring is off by default. History, settings and the queue stay in a local SQLite database.
 
-DarkLoad does not collect platform credentials or import browser sessions. The TikTok guest player uses a private webview and temporary guest cookies for its media requests.
+DarkLoad does not collect platform credentials or import browser sessions. The TikTok guest player uses a private webview and temporary guest cookies for its media requests. The YouTube Browser runs in a private, signed-out session with no access to DarkLoad's internals: it only opens YouTube pages, keeps no cookies or history after DarkLoad closes, and every video it reports is checked and turned back into a plain YouTube link by the backend.
 
 ## Development
 

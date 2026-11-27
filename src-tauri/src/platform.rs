@@ -85,7 +85,7 @@ fn unsupported(message: &str) -> AppError {
     AppError::new(ErrorCode::UnsupportedUrl, message)
 }
 
-fn is_youtube_video_id(id: &str) -> bool {
+pub(crate) fn is_youtube_video_id(id: &str) -> bool {
     id.len() == 11
         && id
             .bytes()

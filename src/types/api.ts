@@ -436,3 +436,29 @@ export interface DeleteResult {
   files: number;
   fileErrors: number;
 }
+
+// ----- YouTube browser --------------------------------------------------------------------------
+
+/** Where the browser sits in the main window, in CSS pixels. */
+export interface BrowserBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** A video picked in the built-in browser. The URL and thumbnail are rebuilt by the backend. */
+export interface BrowserVideo {
+  id: string;
+  url: string;
+  title: string | null;
+  uploader: string | null;
+  duration: number | null;
+  thumbnail: string;
+}
+
+export type BrowserEvent =
+  | { kind: "toggle"; video: BrowserVideo; selected: boolean }
+  | { kind: "page"; url: string; title: string | null; video: BrowserVideo | null }
+  | { kind: "loading"; loading: boolean }
+  | { kind: "blocked"; url: string };

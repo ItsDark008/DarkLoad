@@ -40,7 +40,7 @@ export function Changelog({ markdown }: { markdown: string }) {
 }
 
 const SHORTCUTS: [string[], string][] = [
-  [[modKey, "1…7"], "Switch between pages"],
+  [[modKey, "1…8"], "Switch between pages"],
   [[modKey, "L"], "Focus the link field"],
   [[modKey, "Shift", "V"], "Paste a link and analyze it"],
   [[modKey, "Enter"], "Start the download"],

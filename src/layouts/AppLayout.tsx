@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   Square,
   Copy,
+  Globe,
   X,
   CircleArrowUp,
   type LucideIcon,
@@ -30,13 +31,14 @@ const WORKSPACE_NAV: NavItem[] = [
   { page: "overview", label: "Overview", icon: LayoutGrid, key: "1" },
   { page: "downloader", label: "Downloader", icon: ArrowDownToLine, key: "2" },
   { page: "batch", label: "Batch Download", icon: Layers, key: "3" },
-  { page: "queue", label: "Download Queue", icon: ListVideo, key: "4" },
-  { page: "history", label: "History", icon: History, key: "5" },
+  { page: "browser", label: "YouTube Browser", icon: Globe, key: "4" },
+  { page: "queue", label: "Download Queue", icon: ListVideo, key: "5" },
+  { page: "history", label: "History", icon: History, key: "6" },
 ];
 
 const APP_NAV: NavItem[] = [
-  { page: "settings", label: "Settings", icon: SettingsIcon, key: "6" },
-  { page: "about", label: "About", icon: Info, key: "7" },
+  { page: "settings", label: "Settings", icon: SettingsIcon, key: "7" },
+  { page: "about", label: "About", icon: Info, key: "8" },
 ];
 
 function useMaximized(enabled: boolean) {

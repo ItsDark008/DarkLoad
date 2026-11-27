@@ -20,6 +20,7 @@ use crate::queue::{AnalysisCache, DownloadRequest, Job, QueueManager};
 use crate::settings::Settings;
 use crate::storage::{HistoryEntry, HistoryPage, HistoryQuery, HistoryStats, Storage};
 use crate::updater::{self, UpdateInfo};
+use crate::youtube_browser::Bounds;
 use crate::{security, thumbnails};
 
 pub struct AppPaths {
@@ -41,6 +42,7 @@ pub struct AppState {
     pub thumbnail_slots: Semaphore,
     pub(crate) tiktok_guest: Arc<crate::tiktok::GuestPlayer>,
     pub(crate) spotify: Arc<crate::spotify::SpotifyClient>,
+    pub(crate) browser: Arc<crate::youtube_browser::YoutubeBrowser>,
     pub updates: Arc<updater::UpdateService>,
 }
 
@@ -650,6 +652,53 @@ pub fn validate_directory(path: String) -> Cmd<String> {
 #[tauri::command]
 pub fn has_active_downloads(state: State<'_, AppState>) -> bool {
     state.queue.running_count() > 0
+}
+
+// ----- YouTube browser ------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn browser_show(state: State<'_, AppState>, bounds: Bounds) -> Cmd<()> {
+    state.browser.show(bounds).await
+}
+
+#[tauri::command]
+pub fn browser_hide(state: State<'_, AppState>) -> Cmd<()> {
+    state.browser.hide()
+}
+
+#[tauri::command]
+pub fn browser_set_bounds(state: State<'_, AppState>, bounds: Bounds) -> Cmd<()> {
+    state.browser.set_bounds(bounds)
+}
+
+#[tauri::command]
+pub fn browser_navigate(state: State<'_, AppState>, input: String) -> Cmd<()> {
+    state.browser.navigate(&input)
+}
+
+#[tauri::command]
+pub fn browser_back(state: State<'_, AppState>) -> Cmd<()> {
+    state.browser.back()
+}
+
+#[tauri::command]
+pub fn browser_forward(state: State<'_, AppState>) -> Cmd<()> {
+    state.browser.forward()
+}
+
+#[tauri::command]
+pub fn browser_reload(state: State<'_, AppState>) -> Cmd<()> {
+    state.browser.reload()
+}
+
+#[tauri::command]
+pub fn browser_sync_selection(state: State<'_, AppState>, ids: Vec<String>) -> Cmd<()> {
+    state.browser.sync_selection(ids)
+}
+
+#[tauri::command]
+pub fn browser_open_blocked(state: State<'_, AppState>) -> Cmd<()> {
+    state.browser.open_blocked()
 }
 
 fn path_string(p: PathBuf) -> String {

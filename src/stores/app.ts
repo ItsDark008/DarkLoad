@@ -3,9 +3,9 @@ import { toast } from "sonner";
 import { api } from "@/services/api";
 import type { AppInfo, DependencyStatus, DepId, InstallProgress, Settings, UpdateInfo } from "@/types/api";
 
-export type Page = "overview" | "downloader" | "batch" | "queue" | "history" | "settings" | "about";
+export type Page = "overview" | "downloader" | "batch" | "browser" | "queue" | "history" | "settings" | "about";
 
-export const PAGE_ORDER: Page[] = ["overview", "downloader", "batch", "queue", "history", "settings", "about"];
+export const PAGE_ORDER: Page[] = ["overview", "downloader", "batch", "browser", "queue", "history", "settings", "about"];
 
 export type SettingsSection = "general" | "downloads" | "appearance" | "dependencies" | "updates" | "privacy";
 

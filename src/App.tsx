@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/common";
@@ -10,6 +10,7 @@ import { useAppEffectsBundle } from "@/hooks/useAppBundle";
 import { AppLayout } from "@/layouts/AppLayout";
 import { AboutPage, ShortcutList } from "@/pages/About";
 import { BatchPage } from "@/pages/Batch";
+import { BrowserPage } from "@/pages/Browser";
 import { DownloaderPage } from "@/pages/Downloader";
 import { HistoryPage } from "@/pages/History";
 import { OverviewPage } from "@/pages/Overview";
@@ -76,6 +77,7 @@ export function App() {
             {page === "overview" ? <OverviewPage /> : null}
             {page === "downloader" ? <DownloaderPage /> : null}
             {page === "batch" ? <BatchPage /> : null}
+            {page === "browser" ? <BrowserPage /> : null}
             {page === "queue" ? <QueuePage /> : null}
             {page === "history" ? <HistoryPage /> : null}
             {page === "settings" ? <SettingsPage /> : null}
@@ -110,6 +112,9 @@ export function App() {
       <Toaster
         theme="dark"
         position="bottom-right"
+        // On the Browser page, toasts stay within the selection panel instead of under YouTube.
+        offset={page === "browser" ? 16 : undefined}
+        style={page === "browser" ? ({ "--width": "308px" } as CSSProperties) : undefined}
         toastOptions={{
           classNames: {
             toast: "!bg-elevated !border !border-line-strong !text-fg !rounded-lg !shadow-2xl !shadow-black !font-sans",

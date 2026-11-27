@@ -66,7 +66,7 @@ export function useGlobalShortcuts() {
       const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       const mod = e.ctrlKey || e.metaKey;
       const { navigate, setShortcutsOpen } = useApp.getState();
-      if (mod && !e.shiftKey && !e.altKey && /^[1-7]$/.test(e.key)) {
+      if (mod && !e.shiftKey && !e.altKey && /^[1-8]$/.test(e.key)) {
         e.preventDefault();
         const page = PAGE_ORDER[Number(e.key) - 1];
         if (page) navigate(page);

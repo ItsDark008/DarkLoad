@@ -60,6 +60,7 @@ src-tauri/src/
   settings.rs                settings schema, defaults and validation
   thumbnails.rs              local thumbnail cache served through the asset protocol
   updater.rs                 signed application updates (when configured)
+  youtube_browser.rs/.js     built-in YouTube browser (child webview) and its selection script
   commands.rs / events.rs    typed IPC commands and Tauri events
 src-tauri/examples/fake_ytdlp.rs   deterministic yt-dlp stand-in for queue tests
 ```
@@ -78,6 +79,7 @@ src-tauri/examples/fake_ytdlp.rs   deterministic yt-dlp stand-in for queue tests
 - A strict Content Security Policy forbids remote scripts and remote images; thumbnails are fetched by the backend and served from the local cache.
 - User input never reaches a shell. URLs are validated and normalized before use and passed after `--`; templates and format expressions are validated against allow-lists.
 - Downloaded components are verified against published SHA-256 checksums before installation; archive entries are extracted by file name only.
+- The YouTube Browser is a child webview of the main window (Tauri's `unstable` feature). It loads only YouTube pages in a private session and has no IPC access: its injected script reports selections by starting a navigation to a per-session sentinel URL, which the backend reads and cancels. The backend validates every report, rebuilds video URLs and thumbnails from the 11-character video ID and only then forwards them to the main window.
 
 ## Tests
 

@@ -18,6 +18,7 @@ pub mod storage;
 pub mod thumbnails;
 mod tiktok;
 pub mod updater;
+mod youtube_browser;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -146,6 +147,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     queue.set_guest_player(tiktok_guest.clone());
     let spotify = Arc::new(spotify::SpotifyClient::new()?);
     queue.set_spotify_client(spotify.clone());
+    let browser = Arc::new(youtube_browser::YoutubeBrowser::new(handle.clone()));
     let updates = Arc::new(updater::UpdateService::new());
     updates.start(handle.clone(), settings.clone());
 
@@ -160,6 +162,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         thumbnail_slots: Semaphore::new(6),
         tiktok_guest,
         spotify,
+        browser,
         updates,
     });
 
@@ -249,6 +252,15 @@ pub fn run() {
             commands::clear_temporary_files,
             commands::validate_directory,
             commands::has_active_downloads,
+            commands::browser_show,
+            commands::browser_hide,
+            commands::browser_set_bounds,
+            commands::browser_navigate,
+            commands::browser_back,
+            commands::browser_forward,
+            commands::browser_reload,
+            commands::browser_sync_selection,
+            commands::browser_open_blocked,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DarkLoad");
