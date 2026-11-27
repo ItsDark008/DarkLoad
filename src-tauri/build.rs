@@ -40,6 +40,15 @@ const COMMANDS: &[&str] = &[
     "clear_temporary_files",
     "validate_directory",
     "has_active_downloads",
+    "browser_show",
+    "browser_hide",
+    "browser_set_bounds",
+    "browser_navigate",
+    "browser_back",
+    "browser_forward",
+    "browser_reload",
+    "browser_sync_selection",
+    "browser_open_blocked",
 ];
 
 fn main() {

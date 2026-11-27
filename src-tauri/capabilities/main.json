@@ -67,6 +67,15 @@
     "allow-deps-diagnostics",
     "allow-clear-temporary-files",
     "allow-validate-directory",
-    "allow-has-active-downloads"
+    "allow-has-active-downloads",
+    "allow-browser-show",
+    "allow-browser-hide",
+    "allow-browser-set-bounds",
+    "allow-browser-navigate",
+    "allow-browser-back",
+    "allow-browser-forward",
+    "allow-browser-reload",
+    "allow-browser-sync-selection",
+    "allow-browser-open-blocked"
   ]
 }

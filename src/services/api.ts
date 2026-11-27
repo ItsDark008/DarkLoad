@@ -4,6 +4,7 @@ import type {
   Analysis,
   AppError,
   AppInfo,
+  BrowserBounds,
   DeleteResult,
   DependencyStatus,
   DepId,
@@ -94,6 +95,17 @@ export const api = {
   validateDirectory: (path: string) => call<string>("validate_directory", { path }),
   hasActiveDownloads: () => call<boolean>("has_active_downloads"),
 
+  browserShow: (bounds: BrowserBounds) => call<void>("browser_show", { bounds }),
+  browserHide: () => call<void>("browser_hide"),
+  browserSetBounds: (bounds: BrowserBounds) => call<void>("browser_set_bounds", { bounds }),
+  /** Opens a YouTube link, or searches YouTube for anything else. Empty input goes home. */
+  browserNavigate: (input: string) => call<void>("browser_navigate", { input }),
+  browserBack: () => call<void>("browser_back"),
+  browserForward: () => call<void>("browser_forward"),
+  browserReload: () => call<void>("browser_reload"),
+  browserSyncSelection: (ids: string[]) => call<void>("browser_sync_selection", { ids }),
+  /** Opens the last link that left YouTube in the system browser. */
+  browserOpenBlocked: () => call<void>("browser_open_blocked"),
 };
 
 export const events = {
@@ -105,4 +117,5 @@ export const events = {
   updaterProgress: "updater://progress",
   updaterStatus: "updater://status",
   historyChanged: "history://changed",
+  browser: "browser://event",
 } as const;

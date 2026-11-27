@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-browser-sync-selection"
+description = "Enables the browser_sync_selection command without any pre-configured scope."
+commands.allow = ["browser_sync_selection"]
+
+[[permission]]
+identifier = "deny-browser-sync-selection"
+description = "Denies the browser_sync_selection command without any pre-configured scope."
+commands.deny = ["browser_sync_selection"]
