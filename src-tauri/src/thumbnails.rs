@@ -84,6 +84,27 @@ pub async fn cache(http: &reqwest::Client, dir: &Path, url: &str) -> Option<Path
     Some(target)
 }
 
+/// Returns the folder where files created in `dir` are physically stored, when it differs from
+/// where `dir` itself resolves.
+///
+/// Windows can redirect new files written under `%LOCALAPPDATA%` to another folder. This happens
+/// with MSIX file-system virtualization, for example when DarkLoad is started by a packaged app:
+/// the files land in `%LOCALAPPDATA%\Packages\<package>\LocalCache\Local\...` while the folder
+/// still appears at its usual path. The asset protocol canonicalizes every requested file before
+/// checking its scope, so thumbnails stored in the redirected folder are rejected unless that
+/// folder is allowed as well.
+pub fn redirected_dir(dir: &Path) -> Option<PathBuf> {
+    let probe = dir.join(format!(".location-probe-{}", std::process::id()));
+    std::fs::write(&probe, b"").ok()?;
+    let stored = std::fs::canonicalize(&probe)
+        .ok()
+        .and_then(|p| p.parent().map(Path::to_path_buf));
+    let _ = std::fs::remove_file(&probe);
+    let stored = stored?;
+    let resolved = std::fs::canonicalize(dir).ok()?;
+    (stored != resolved).then_some(stored)
+}
+
 /// Deletes every cached thumbnail.
 pub fn clear(dir: &Path) -> std::io::Result<()> {
     if dir.exists() {
@@ -126,5 +147,18 @@ mod tests {
         assert!(cache(&client, dir.path(), "file:///etc/passwd")
             .await
             .is_none());
+    }
+
+    #[test]
+    fn plain_folders_are_not_redirected_and_the_probe_is_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(redirected_dir(dir.path()), None);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn missing_folders_are_not_redirected() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(redirected_dir(&dir.path().join("missing")), None);
     }
 }
