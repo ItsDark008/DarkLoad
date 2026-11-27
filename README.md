@@ -100,7 +100,7 @@ On first launch DarkLoad offers to install its components (yt-dlp, FFmpeg/FFprob
 ### System requirements
 
 - **Windows:** Windows 10 version 1809 or later, or Windows 11; Microsoft Edge WebView2 (preinstalled on current Windows; the installer fetches it if missing).
-- **Linux:** a desktop with WebKitGTK 4.1 (Ubuntu 22.04+, Debian 12+, Fedora 38+, current Arch) and glibc. The `.deb` and `.rpm` packages pull these in automatically.
+- **Linux:** a desktop with WebKitGTK 4.1 (Ubuntu 22.04+, Debian 12+, Fedora 38+, current Arch) and glibc. The `.deb` and `.rpm` packages pull these in automatically, and the `.AppImage` bundles GStreamer. With `_portable.tar.gz`, install GStreamer's good plugins (`gst-plugins-good` on Arch, `gstreamer1.0-plugins-good` on Debian/Ubuntu), or the built-in browser crashes when a video plays.
 - About 250 MB of disk space for the application and components, plus space for your downloads.
 
 ## Privacy

@@ -89,14 +89,15 @@
     },
     "linux": {
       "deb": {
-        "depends": [],
+        "depends": ["gstreamer1.0-plugins-good"],
         "section": "video"
       },
       "rpm": {
-        "release": "1"
+        "release": "1",
+        "depends": ["/usr/lib64/gstreamer-1.0/libgstautodetect.so"]
       },
       "appimage": {
-        "bundleMediaFramework": false
+        "bundleMediaFramework": true
       }
     }
   },
