@@ -1,7 +1,7 @@
 {
   "name": "darkload",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "One link. Maximum quality. A privacy-focused desktop media downloader.",
   "license": "MIT",
   "type": "module",

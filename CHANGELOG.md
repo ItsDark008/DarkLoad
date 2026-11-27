@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-27
+
+### Fixed
+
+- YouTube Browser on Linux: the browser now sits in its place on the Browser page instead of below a squashed window, and pages load normally instead of showing placeholders forever.
+- YouTube Browser on Linux: the page no longer freezes when a video or preview starts playing. The AppImage now bundles GStreamer, and the `.deb` and `.rpm` packages install GStreamer's good plugins.
+- YouTube Browser on Linux: clicking the label of "Select for DarkLoad" now selects the video.
+
 ## [1.4.0] - 2026-11-27
 
 ### Added
