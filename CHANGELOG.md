@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-27
+
 ### Added
 
 - YouTube Browser: browse YouTube inside DarkLoad and pick videos as you go. Hover a thumbnail on the home page, search results, channels, playlists, related videos or Shorts and tick its box, or open a video and choose "Select this video". Picks gather in a side panel with their title, channel and duration; download them all at once with the usual quality and format settings. Playlists and videos can also be sent to the Downloader for a full analysis.
@@ -13,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 
 - The keyboard shortcuts for switching pages now run from Ctrl+1 to Ctrl+8, with the YouTube Browser at Ctrl+4.
+
+### Fixed
+
+- Thumbnails no longer fall back to a placeholder on Windows when DarkLoad is started by a packaged (MSIX) app, which stores new files in a redirected folder.
 
 ## [1.1.0] - 2026-11-27
 
