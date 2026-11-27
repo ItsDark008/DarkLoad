@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-27
+
 ### Added
 
 - **Italian language.** DarkLoad is now available in Italian. Choose the language in Settings → General → Language, or keep **System default** to follow your operating system. Menus, messages, errors, desktop notifications and the YouTube Browser controls are translated, and dates and language names follow the chosen language.
