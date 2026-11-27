@@ -7,11 +7,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::{AppError, AppResult};
 use crate::formats::{
-    AudioCodecPreference, AudioFormat, Container, QualityMode, VideoCodecPreference,
+    AudioCodecPreference, AudioFormat, Container, DownloadOptions, QualityMode,
+    VideoCodecPreference,
 };
 use crate::security::{validate_filename_template, DuplicatePolicy};
 
 pub const DEFAULT_TEMPLATE: &str = "%(title).180B [%(id)s].%(ext)s";
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadPreset {
+    pub name: String,
+    pub options: DownloadOptions,
+    pub output_dir: Option<String>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -87,6 +96,7 @@ pub struct Settings {
     pub partial_files: PartialFilePolicy,
     pub playlist_behavior: PlaylistBehavior,
     pub resume_queue_on_startup: bool,
+    pub download_presets: Vec<DownloadPreset>,
 
     // Default advanced options
     pub video_codec: VideoCodecPreference,
@@ -152,6 +162,7 @@ impl Default for Settings {
             partial_files: PartialFilePolicy::Delete,
             playlist_behavior: PlaylistBehavior::All,
             resume_queue_on_startup: true,
+            download_presets: Vec::new(),
             video_codec: VideoCodecPreference::Any,
             audio_codec: AudioCodecPreference::Any,
             allow_hdr: true,
@@ -292,6 +303,30 @@ impl Settings {
             return Err(AppError::invalid_input(
                 "The download folder path is too long.",
             ));
+        }
+        let mut preset_names = std::collections::HashSet::new();
+        for preset in &self.download_presets {
+            let name = preset.name.trim();
+            if name.is_empty()
+                || name != preset.name
+                || name.chars().count() > 64
+                || name.chars().any(char::is_control)
+                || !preset_names.insert(name.to_lowercase())
+            {
+                return Err(AppError::invalid_input(
+                    "Each download preset needs a unique name of up to 64 characters.",
+                ));
+            }
+            if preset
+                .output_dir
+                .as_ref()
+                .is_some_and(|dir| dir.len() > 1024 || dir.contains('\0'))
+            {
+                return Err(AppError::invalid_input(
+                    "The preset's download folder path is invalid.",
+                ));
+            }
+            preset.options.validate()?;
         }
         Ok(())
     }

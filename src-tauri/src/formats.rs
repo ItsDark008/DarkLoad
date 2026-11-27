@@ -540,6 +540,7 @@ pub struct DownloadOptions {
     pub container: Container,
     pub video_codec: VideoCodecPreference,
     pub audio_codec: AudioCodecPreference,
+    pub audio_tracks: AudioTrackSelection,
     pub allow_hdr: bool,
     pub audio_format: AudioFormat,
     /// Target bitrate in kbps for lossy conversions. `None` keeps the best available quality.
@@ -566,6 +567,7 @@ impl Default for DownloadOptions {
             container: Container::Auto,
             video_codec: VideoCodecPreference::Any,
             audio_codec: AudioCodecPreference::Any,
+            audio_tracks: AudioTrackSelection::default(),
             allow_hdr: true,
             audio_format: AudioFormat::Original,
             audio_bitrate: None,
@@ -586,6 +588,29 @@ impl DownloadOptions {
     pub fn validate(&self) -> AppResult<()> {
         if self.quality_mode == QualityMode::Custom {
             validate_format_expression(self.custom_format.as_deref().unwrap_or(""))?;
+            if !self.audio_tracks.is_auto() {
+                return Err(AppError::invalid_input(
+                    "Choose audio tracks in the custom format expression.",
+                ));
+            }
+        }
+        if self.audio_tracks.languages.len() > 20
+            || !self
+                .audio_tracks
+                .languages
+                .iter()
+                .all(|code| is_audio_language(code))
+        {
+            return Err(AppError::invalid_input(
+                "Enter up to 20 audio language codes such as it or pt-BR.",
+            ));
+        }
+        if self.media_type == MediaType::Audio
+            && self.audio_tracks.languages.len() + usize::from(self.audio_tracks.original) > 1
+        {
+            return Err(AppError::invalid_input(
+                "Choose one track for audio-only downloads.",
+            ));
         }
         if self.quality_mode == QualityMode::Exact
             && self.media_type == MediaType::Video
@@ -626,6 +651,33 @@ impl DownloadOptions {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AudioTrackSelection {
+    pub original: bool,
+    pub languages: Vec<String>,
+}
+
+impl AudioTrackSelection {
+    pub fn is_auto(&self) -> bool {
+        !self.original && self.languages.is_empty()
+    }
+
+    pub fn keep_one(&mut self) {
+        self.languages.truncate(usize::from(!self.original));
+    }
+}
+
+fn is_audio_language(code: &str) -> bool {
+    let mut parts = code.split('-');
+    parts.next().is_some_and(|base| {
+        (2..=3).contains(&base.len()) && base.bytes().all(|c| c.is_ascii_alphabetic())
+    }) && code.len() <= 35
+        && parts.all(|part| {
+            (1..=8).contains(&part.len()) && part.bytes().all(|c| c.is_ascii_alphanumeric())
+        })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NoteLevel {
@@ -653,6 +705,8 @@ pub struct ContainerConflict {
 pub struct SelectionPlan {
     pub video: Option<MediaFormat>,
     pub audio: Option<MediaFormat>,
+    #[serde(default)]
+    pub additional_audio: Vec<MediaFormat>,
     /// yt-dlp `-f` expression.
     pub format_selector: String,
     /// yt-dlp `-S` expression.
@@ -685,6 +739,7 @@ impl SelectionPlan {
         Self {
             video: None,
             audio: None,
+            additional_audio: Vec::new(),
             format_selector: selector,
             format_sort: None,
             output_container: None,
@@ -699,6 +754,12 @@ impl SelectionPlan {
             embed_thumbnail: false,
             embed_subtitles: false,
         }
+    }
+
+    pub fn audio_count(&self) -> usize {
+        usize::from(self.video.as_ref().is_some_and(MediaFormat::has_audio))
+            + usize::from(self.audio.is_some())
+            + self.additional_audio.len()
     }
 }
 
@@ -769,11 +830,11 @@ fn describe_audio(f: &MediaFormat) -> String {
     }
 }
 
-fn sum_sizes(parts: &[Option<&MediaFormat>]) -> (Option<u64>, bool) {
+fn sum_sizes<'a>(parts: impl IntoIterator<Item = &'a MediaFormat>) -> (Option<u64>, bool) {
     let mut total = 0u64;
     let mut approx = false;
     let mut any = false;
-    for f in parts.iter().flatten() {
+    for f in parts {
         match f.size() {
             Some((s, a)) => {
                 total += s;
@@ -855,6 +916,12 @@ pub fn plan(
         return Ok(plan_custom(&media, opts));
     }
     if media.is_empty() {
+        if !opts.audio_tracks.is_auto() {
+            return Err(AppError::new(
+                ErrorCode::FormatUnavailable,
+                "This source does not report the audio streams needed to select a track.",
+            ));
+        }
         let (selector, sort) = generic_selector(opts);
         let mut plan = SelectionPlan::empty(selector);
         plan.format_sort = sort;
@@ -896,7 +963,11 @@ fn plan_custom(media: &[&MediaFormat], opts: &DownloadOptions) -> SelectionPlan 
                 }
             }
         }
-        let (size, approx) = sum_sizes(&[plan.video.as_ref(), plan.audio.as_ref()]);
+        let (size, approx) = sum_sizes(
+            [plan.video.as_ref(), plan.audio.as_ref()]
+                .into_iter()
+                .flatten(),
+        );
         plan.estimated_size = size;
         plan.size_is_estimate = approx;
     }
@@ -921,6 +992,151 @@ fn plan_custom(media: &[&MediaFormat], opts: &DownloadOptions) -> SelectionPlan 
     plan
 }
 
+fn is_original_audio(format: &MediaFormat) -> bool {
+    // yt-dlp's YouTube extractor gives the original language 10 and the default language 5.
+    format.language_preference == Some(10)
+        || format.note.as_ref().is_some_and(|note| {
+            let note = note.to_ascii_lowercase();
+            note.contains("(original)") || note.contains("[original]")
+        })
+}
+
+fn audio_track_pools<'a>(
+    media: &[&'a MediaFormat],
+    selection: &AudioTrackSelection,
+) -> AppResult<Vec<Vec<&'a MediaFormat>>> {
+    if selection.is_auto() {
+        return Ok(Vec::new());
+    }
+    let audio: Vec<_> = media.iter().copied().filter(|f| f.has_audio()).collect();
+    let mut tracks = Vec::new();
+    if selection.original {
+        let mut original: Vec<_> = audio
+            .iter()
+            .copied()
+            .filter(|f| is_original_audio(f))
+            .collect();
+        if original.is_empty() {
+            let main_audio: Vec<_> = audio
+                .iter()
+                .copied()
+                .filter(|f| {
+                    !f.language
+                        .as_deref()
+                        .is_some_and(|code| code.ends_with("-desc"))
+                })
+                .collect();
+            let languages: std::collections::HashSet<_> = main_audio
+                .iter()
+                .filter_map(|f| f.language.as_ref().map(|code| code.to_ascii_lowercase()))
+                .collect();
+            if languages.len() <= 1 {
+                // Many single-track sources have no original-language marker.
+                original.extend(main_audio.into_iter().filter(|f| {
+                    !f.note
+                        .as_ref()
+                        .is_some_and(|note| note.to_ascii_lowercase().contains("dubbed"))
+                }));
+            }
+        }
+        if original.is_empty() {
+            return Err(AppError::new(
+                ErrorCode::FormatUnavailable,
+                "The original audio track could not be identified for this source.",
+            ));
+        }
+        tracks.push(original);
+    }
+    for requested in &selection.languages {
+        let mut matching: Vec<_> = audio
+            .iter()
+            .copied()
+            .filter(|f| {
+                f.language
+                    .as_deref()
+                    .is_some_and(|code| code.eq_ignore_ascii_case(requested))
+            })
+            .collect();
+        if matching.is_empty() && !requested.contains('-') {
+            matching.extend(audio.iter().copied().filter(|f| {
+                f.language.as_deref().is_some_and(|code| {
+                    !code.ends_with("-desc")
+                        && code
+                            .split_once('-')
+                            .is_some_and(|(base, _)| base.eq_ignore_ascii_case(requested))
+                })
+            }));
+        }
+        if matching.is_empty() {
+            return Err(AppError::new(
+                ErrorCode::FormatUnavailable,
+                format!(
+                    "The requested audio language ({requested}) is unavailable for this source."
+                ),
+            ));
+        }
+        tracks.push(matching);
+    }
+    Ok(tracks)
+}
+
+fn video_audio_choice<'a>(
+    video: &MediaFormat,
+    tracks: &[Vec<&'a MediaFormat>],
+    opts: &DownloadOptions,
+) -> Option<Vec<&'a MediaFormat>> {
+    let mut separate: Vec<&MediaFormat> = Vec::new();
+    for (i, track) in tracks.iter().enumerate() {
+        let matches = |format: &MediaFormat| track.iter().any(|f| f.id == format.id);
+        if (video.has_audio() && matches(video)) || separate.iter().any(|f| matches(f)) {
+            continue;
+        }
+        // A pre-muxed stream brings its audio along as the first track.
+        if i == 0 && video.has_audio() {
+            return None;
+        }
+        separate.push(best_video_audio(
+            track.iter().copied().filter(|f| !f.has_video()),
+            video,
+            opts,
+        )?);
+    }
+    Some(separate)
+}
+
+fn best_video_audio<'a>(
+    formats: impl Iterator<Item = &'a MediaFormat>,
+    video: &MediaFormat,
+    opts: &DownloadOptions,
+) -> Option<&'a MediaFormat> {
+    let compatible = opts.quality_mode == QualityMode::Compatible;
+    let pref = if compatible {
+        AudioCodecPreference::Aac
+    } else {
+        opts.audio_codec
+    };
+    best_by(formats, |f| {
+        let codec = f.audio_codec();
+        (
+            compatible && codec == Some(AudioCodec::Aac),
+            audio_rank(f, pref, None),
+            !compatible && container_supports(opts.container, video.video_codec(), codec),
+        )
+    })
+}
+
+fn track_selector(format: &MediaFormat) -> String {
+    match format
+        .language
+        .as_deref()
+        .filter(|code| is_audio_language(code))
+    {
+        // Format IDs can be renumbered when the set of YouTube languages changes.
+        Some(code) => format!("{}[language={code}]", format.id),
+        None => format.id.clone(),
+    }
+}
+
 fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<SelectionPlan> {
     let all_video: Vec<&MediaFormat> = media.iter().copied().filter(|f| f.has_video()).collect();
     if all_video.is_empty() {
@@ -930,7 +1146,17 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
         ));
     }
     let mut notes: Vec<PlanNote> = Vec::new();
-    let mut candidates: Vec<&MediaFormat> = all_video.clone();
+    let tracks = audio_track_pools(media, &opts.audio_tracks)?;
+    let mut candidates = all_video;
+    if !tracks.is_empty() {
+        candidates.retain(|video| video_audio_choice(video, &tracks, opts).is_some());
+        if candidates.is_empty() {
+            return Err(AppError::new(
+                ErrorCode::FormatUnavailable,
+                "The requested audio tracks cannot be combined with the available video streams.",
+            ));
+        }
+    }
     if !opts.allow_hdr {
         let sdr: Vec<&MediaFormat> = candidates.iter().copied().filter(|f| !f.is_hdr()).collect();
         if sdr.is_empty() {
@@ -987,49 +1213,32 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
     };
 
     let vc = video.video_codec();
-    let mut audio: Option<&MediaFormat> = None;
-    if !video.has_audio() {
-        let audio_only: Vec<&MediaFormat> = media
+    let mut separate = Vec::new();
+    if !tracks.is_empty() {
+        separate =
+            video_audio_choice(video, &tracks, opts).expect("audio checked during video selection");
+    } else if !video.has_audio() {
+        let audio_only = media
             .iter()
             .copied()
-            .filter(|f| f.has_audio() && !f.has_video())
-            .collect();
-        audio = match opts.quality_mode {
-            QualityMode::Compatible => best_by(
-                audio_only
-                    .iter()
-                    .copied()
-                    .filter(|f| f.audio_codec() == Some(AudioCodec::Aac)),
-                |f| audio_rank(f, AudioCodecPreference::Aac, Some(AudioCodec::Aac)),
-            )
-            .or_else(|| {
-                best_by(audio_only.iter().copied(), |f| {
-                    audio_rank(f, AudioCodecPreference::Aac, None)
-                })
-            }),
-            _ => {
-                // With an explicit container, prefer audio that fits it when quality is otherwise equal.
-                let fits =
-                    |f: &MediaFormat| container_supports(opts.container, vc, f.audio_codec());
-                best_by(audio_only.iter().copied(), |f| {
-                    (audio_rank(f, opts.audio_codec, None), fits(f))
-                })
-            }
-        };
-        if audio.is_none() {
+            .filter(|f| f.has_audio() && !f.has_video());
+        separate.extend(best_video_audio(audio_only, video, opts));
+        if separate.is_empty() {
             notes.push(PlanNote {
                 level: NoteLevel::Warning,
                 message: "No separate audio stream is available; the video will be silent.".into(),
             });
         }
     }
-    let ac = audio
-        .and_then(|a| a.audio_codec())
-        .or(if video.has_audio() {
-            video.audio_codec()
-        } else {
-            None
-        });
+    let audio_tracks: Vec<_> = std::iter::once(video)
+        .filter(|f| f.has_audio())
+        .chain(separate.iter().copied())
+        .collect();
+    let codecs: Vec<_> = audio_tracks
+        .iter()
+        .filter_map(|f| f.audio_codec())
+        .collect();
+    let ac = codecs.first().copied();
 
     let requested =
         if opts.quality_mode == QualityMode::Compatible && opts.container == Container::Auto {
@@ -1039,28 +1248,46 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
         };
     // The reported container of an already bundled stream can carry both tracks, even
     // when the extractor lacks enough codec metadata to derive a container.
-    let source_container =
-        if audio.is_none() && (vc == Some(VideoCodec::Other) || ac == Some(AudioCodec::Other)) {
-            match video.ext.as_str() {
-                "mp4" => Some(Container::Mp4),
-                "mkv" => Some(Container::Mkv),
-                "webm" => Some(Container::Webm),
-                _ => None,
-            }
-        } else {
-            None
-        };
+    let source_container = if separate.is_empty()
+        && (vc == Some(VideoCodec::Other) || ac == Some(AudioCodec::Other))
+    {
+        match video.ext.as_str() {
+            "mp4" => Some(Container::Mp4),
+            "mkv" => Some(Container::Mkv),
+            "webm" => Some(Container::Webm),
+            _ => None,
+        }
+    } else {
+        None
+    };
     let mut conflict = None;
+    let fits = |container| {
+        container_supports(container, vc, ac)
+            && codecs
+                .iter()
+                .skip(1)
+                .all(|&codec| container_supports(container, vc, Some(codec)))
+    };
     let output_container = match requested {
-        Container::Auto => source_container.unwrap_or_else(|| native_container(vc, ac)),
-        c if source_container == Some(c) || container_supports(c, vc, ac) => c,
+        Container::Auto => source_container.unwrap_or_else(|| {
+            let native = native_container(vc, ac);
+            if fits(native) {
+                native
+            } else {
+                Container::Mkv
+            }
+        }),
+        c if source_container == Some(c) || fits(c) => c,
         c => {
             let suggested = Container::Mkv;
             let reason = format!(
                 "{} cannot store {}{} without re-encoding. {} keeps the original streams.",
                 c.label(),
                 vc.map(VideoCodec::label).unwrap_or("this video"),
-                ac.map(|a| format!(" + {}", a.label())).unwrap_or_default(),
+                codecs
+                    .iter()
+                    .map(|codec| format!(" + {}", codec.label()))
+                    .collect::<String>(),
                 suggested.label()
             );
             conflict = Some(ContainerConflict {
@@ -1073,7 +1300,7 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
     };
 
     if output_container == Container::Mp4 && matches!(vc, Some(VideoCodec::Vp9))
-        || output_container == Container::Mp4 && ac == Some(AudioCodec::Opus)
+        || output_container == Container::Mp4 && codecs.contains(&AudioCodec::Opus)
     {
         notes.push(PlanNote {
             level: NoteLevel::Info,
@@ -1095,23 +1322,42 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
         });
     }
 
-    let selector = match audio {
-        Some(a) => format!("{}+{}", video.id, a.id),
-        None => video.id.clone(),
-    };
-    let (generic, _) = generic_selector(opts);
-    let mut plan = SelectionPlan::empty(format!("{selector}/{generic}"));
-    plan.requires_merge = audio.is_some();
+    let streams: Vec<_> = std::iter::once(video)
+        .chain(separate.iter().copied())
+        .collect();
+    let mut selector = streams
+        .iter()
+        .map(|f| {
+            if tracks.is_empty() {
+                f.id.clone()
+            } else {
+                track_selector(f)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("+");
+    if tracks.is_empty() {
+        selector.push('/');
+        selector.push_str(&generic_selector(opts).0);
+    }
+    let mut plan = SelectionPlan::empty(selector);
+    plan.requires_merge = !separate.is_empty();
     plan.output_container = Some(output_container);
-    let (size, approx) = sum_sizes(&[Some(video), audio]);
+    let (size, approx) = sum_sizes(streams);
     plan.estimated_size = size;
     plan.size_is_estimate = approx;
-    plan.quality_label = match audio {
+    plan.quality_label = match separate.first() {
+        _ if audio_tracks.len() > 1 => format!(
+            "{} + {} audio tracks",
+            describe_video(video),
+            audio_tracks.len()
+        ),
         Some(a) => format!("{} + {}", describe_video(video), describe_audio(a)),
         None => describe_video(video),
     };
     plan.video = Some(video.clone());
-    plan.audio = audio.cloned();
+    plan.audio = separate.first().map(|f| (*f).clone());
+    plan.additional_audio = separate.iter().skip(1).map(|f| (*f).clone()).collect();
     plan.container_conflict = conflict;
     plan.embed_thumbnail = opts.embed_thumbnail && output_container != Container::Webm;
     if opts.embed_thumbnail && output_container == Container::Webm {
@@ -1122,7 +1368,28 @@ fn plan_video(media: &[&MediaFormat], opts: &DownloadOptions) -> AppResult<Selec
     }
     plan.embed_subtitles = opts.download_subtitles && opts.embed_subtitles;
     plan.notes = notes;
+    if !tracks.is_empty() {
+        describe_audio_selection(&mut plan, &audio_tracks);
+    }
     Ok(plan)
+}
+
+fn describe_audio_selection(plan: &mut SelectionPlan, tracks: &[&MediaFormat]) {
+    let labels = tracks
+        .iter()
+        .map(|track| {
+            let language = track.language.as_deref().unwrap_or("Language not reported");
+            if is_original_audio(track) {
+                format!("{language} (original)")
+            } else {
+                language.to_string()
+            }
+        })
+        .collect::<Vec<_>>();
+    plan.note(
+        NoteLevel::Info,
+        format!("Audio tracks: {}.", labels.join(", ")),
+    );
 }
 
 fn plan_audio(
@@ -1130,8 +1397,10 @@ fn plan_audio(
     duration: Option<f64>,
     opts: &DownloadOptions,
 ) -> AppResult<SelectionPlan> {
-    let audio_streams: Vec<&MediaFormat> =
-        media.iter().copied().filter(|f| f.has_audio()).collect();
+    let mut tracks = audio_track_pools(media, &opts.audio_tracks)?;
+    let audio_streams = tracks
+        .pop()
+        .unwrap_or_else(|| media.iter().copied().filter(|f| f.has_audio()).collect());
     if audio_streams.is_empty() {
         return Err(AppError::new(
             ErrorCode::FormatUnavailable,
@@ -1170,15 +1439,23 @@ fn plan_audio(
         f => f.native_codec().is_some() && f.native_codec() == source_codec,
     };
 
-    let mut plan = SelectionPlan::empty(format!("{}/{}", source.id, generic_selector(opts).0));
+    let selector = if opts.audio_tracks.is_auto() {
+        format!("{}/{}", source.id, generic_selector(opts).0)
+    } else {
+        track_selector(source)
+    };
+    let mut plan = SelectionPlan::empty(selector);
     plan.audio = Some(source.clone());
+    if !opts.audio_tracks.is_auto() {
+        describe_audio_selection(&mut plan, &[source]);
+    }
     plan.audio_conversion = Some(opts.audio_format);
     plan.transcodes_audio = !copies;
     plan.embed_thumbnail = opts.embed_thumbnail && opts.audio_format.supports_thumbnail();
     let src_abr = source.audio_bitrate().round() as u32;
 
     if copies {
-        let (size, approx) = sum_sizes(&[Some(source)]);
+        let (size, approx) = sum_sizes([source]);
         plan.estimated_size = size;
         plan.size_is_estimate = approx;
         plan.quality_label = format!("{} (original, no re-encoding)", describe_audio(source));
@@ -1309,6 +1586,69 @@ mod tests {
 
     fn opts() -> DownloadOptions {
         DownloadOptions::default()
+    }
+
+    #[test]
+    fn selected_video_tracks_are_merged_without_an_unrestricted_fallback() {
+        let video = v("315", "vp09.00.51.08", 3840, 2160, 60.0, 25000.0);
+        let original = MediaFormat {
+            language: Some("en".into()),
+            language_preference: Some(10),
+            ..a("251", "opus", 140.0)
+        };
+        let dubbed = MediaFormat {
+            language: Some("it-IT".into()),
+            language_preference: Some(5),
+            ..a("140", "mp4a.40.2", 128.0)
+        };
+        let options = DownloadOptions {
+            container: Container::Webm,
+            audio_tracks: AudioTrackSelection {
+                original: true,
+                languages: vec!["it".into()],
+            },
+            ..opts()
+        };
+        let selected = plan(&[video, original, dubbed], None, &options).unwrap();
+        assert_eq!(
+            selected.format_selector,
+            "315+251[language=en]+140[language=it-IT]"
+        );
+        assert_eq!(selected.audio_count(), 2);
+        assert_eq!(selected.additional_audio[0].id, "140");
+        assert_eq!(selected.estimated_size, Some(25_000_000 + 14_000 + 12_800));
+        assert_eq!(
+            selected.container_conflict.unwrap().suggested,
+            Container::Mkv
+        );
+    }
+
+    #[test]
+    fn audio_only_uses_the_requested_language_even_when_only_muxed() {
+        let original = MediaFormat {
+            language: Some("en".into()),
+            ..a("140", "mp4a.40.2", 128.0)
+        };
+        let dubbed = MediaFormat {
+            language: Some("it".into()),
+            acodec: Some("mp4a.40.2".into()),
+            ..v("22", "avc1.64001F", 1280, 720, 30.0, 2000.0)
+        };
+        let mut options = DownloadOptions {
+            media_type: MediaType::Audio,
+            audio_tracks: AudioTrackSelection {
+                original: false,
+                languages: vec!["it".into()],
+            },
+            ..opts()
+        };
+        let formats = [original, dubbed];
+        let selected = plan(&formats, None, &options).unwrap();
+        assert_eq!(selected.format_selector, "22[language=it]");
+        options.audio_tracks.languages[0] = "fr".into();
+        let error = plan(&formats, None, &options).unwrap_err();
+        assert_eq!(error.code, ErrorCode::FormatUnavailable);
+        assert!(error.message.contains("fr"));
     }
 
     #[test]

@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-27
+
+### Added
+
+- **Download presets.** Save quality, format, subtitles, audio tracks and destination so you can reuse the same setup across download screens. The menu shows the active preset, and **Originale** restores the defaults.
+- **Audio track selection.** Save the original audio, choose an available language, or keep multiple tracks in one video so you can switch between them during playback.
+
 ## [1.2.0] - 2026-11-27
 
 ### Added

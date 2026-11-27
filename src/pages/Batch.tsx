@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AlertCircle, CheckCircle2, FileText, Layers, ListChecks, Loader2, MoreHorizontal, Plus, Search, Settings2, Trash2, Upload } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DownloadOptionsForm } from "@/components/DownloadOptionsForm";
+import { DownloadPresets } from "@/components/DownloadPresets";
 import { EmptyState, PageHeader } from "@/components/common";
 import { PlaylistPicker } from "@/components/media";
 import { PlatformIcon } from "@/components/brand";
@@ -55,14 +56,14 @@ function StatusCell({ item }: { item: BatchItem }) {
 export function BatchPage() {
   const settings = useApp((s) => s.settings);
   const navigate = useApp((s) => s.navigate);
-  const { items, globalOptions, setGlobalOptions, addUrls, remove, update, setAllSelected, clear, analyzeAll, analyzeOne, analyzing } = useBatch();
+  const { items, globalOptions, setGlobalOptions, outputDir, setOutputDir, addUrls, remove, update, setAllSelected, clear, analyzeAll, analyzeOne, analyzing } = useBatch();
   const [text, setText] = useState("");
   const [dragging, setDragging] = useState(false);
   const [editing, setEditing] = useState<BatchItem | null>(null);
-  const [outputDir, setOutputDir] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const folder = outputDir ?? settings?.downloadDir ?? "";
 
   useEffect(() => {
     if (!globalOptions && settings) setGlobalOptions(optionsFromSettings(settings));
@@ -318,12 +319,20 @@ export function BatchPage() {
           <Card className="p-5">
             <SectionTitle>Batch settings</SectionTitle>
             <p className="mb-4 text-xs text-fg-2">Applied to every item unless you customize it. Each item uses the best formats it actually offers.</p>
-            {globalOptions ? <DownloadOptionsForm options={globalOptions} onChange={(patch) => setGlobalOptions({ ...globalOptions, ...patch })} /> : null}
+            {globalOptions ? (
+              <>
+                <DownloadPresets page="batch" options={globalOptions} outputDir={folder} onApply={(preset) => {
+                  setGlobalOptions(preset.options);
+                  setOutputDir(preset.outputDir);
+                }} />
+                <DownloadOptionsForm options={globalOptions} onChange={(patch) => setGlobalOptions({ ...globalOptions, ...patch })} />
+              </>
+            ) : null}
           </Card>
           <Card className="space-y-4 p-5">
             <div>
               <div className="mb-1.5 text-xs font-medium text-fg-2">Save to</div>
-              <OutputFolder value={outputDir ?? settings?.downloadDir ?? ""} onChange={setOutputDir} />
+              <OutputFolder value={folder} onChange={setOutputDir} />
             </div>
             <Button variant="primary" size="lg" className="w-full" disabled={requestCount === 0 || submitting} onClick={() => void addToQueue()}>
               {submitting ? <Loader2 className="animate-spin" /> : <FileText />}
@@ -350,7 +359,7 @@ export function BatchPage() {
 }
 
 function BatchItemEditor({ item, fallback, onSave }: { item: BatchItem; fallback: NonNullable<BatchItem["options"]>; onSave: (patch: Partial<BatchItem>) => void }) {
-  const [options, setOptions] = useState(item.options ?? fallback);
+  const [options, setOptions] = useState(() => optionsForPlatform(item.options ?? fallback, item.analysis?.platform ?? item.platform ?? undefined));
   const [entries, setEntries] = useState(new Set(item.entries));
   const a = item.analysis;
   return (
@@ -366,7 +375,7 @@ function BatchItemEditor({ item, fallback, onSave }: { item: BatchItem; fallback
     >
       <div className="space-y-5">
         {a?.kind === "playlist" ? <PlaylistPicker playlist={a} selected={entries} onSelectedChange={setEntries} height={280} /> : null}
-        <DownloadOptionsForm options={options} onChange={(patch) => setOptions((o) => ({ ...o, ...patch }))} summary={a?.kind === "media" ? a.summary : null} showGlobal={false} />
+        <DownloadOptionsForm options={options} onChange={(patch) => setOptions((o) => ({ ...o, ...patch }))} summary={a?.kind === "media" ? a.summary : null} formats={a?.kind === "media" ? a.formats : undefined} showGlobal={false} audioOnly={a?.platform === "spotify" || item.platform === "spotify"} />
       </div>
     </DialogContent>
   );

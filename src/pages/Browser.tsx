@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { AlertCircle, ArrowDownToLine, ArrowLeft, ArrowRight, Check, Download, Home, Loader2, MousePointerClick, Plus, RotateCw, Settings2, Trash2, X } from "lucide-react";
 import { DownloadOptionsForm } from "@/components/DownloadOptionsForm";
+import { DownloadPresets } from "@/components/DownloadPresets";
 import { EmptyState } from "@/components/common";
 import { Thumb } from "@/components/Thumb";
 import { Button } from "@/components/ui/button";
@@ -251,6 +252,7 @@ function SelectionTray() {
   const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const effective = options ?? (settings ? optionsFromSettings(settings) : null);
+  const folder = outputDir ?? settings?.downloadDir ?? "";
 
   const download = async () => {
     if (!effective || selection.length === 0) return;
@@ -320,7 +322,7 @@ function SelectionTray() {
         </div>
         <div>
           <div className="mb-1.5 text-xs font-medium text-fg-2">Save to</div>
-          <OutputFolder value={outputDir ?? settings?.downloadDir ?? ""} onChange={setOutputDir} />
+          <OutputFolder value={folder} onChange={setOutputDir} />
         </div>
         <Button variant="primary" size="lg" className="w-full" disabled={selection.length === 0 || submitting || !effective} onClick={() => void download()}>
           {submitting ? <Loader2 className="animate-spin" /> : <Download />}
@@ -332,7 +334,7 @@ function SelectionTray() {
         {effective ? (
           <DialogContent
             title="Download settings"
-            description="Used for every selected video. Each one downloads in the best formats it actually offers."
+            description="These settings apply to every selected video. Audio tracks are checked for each video."
             className="w-[min(760px,calc(100vw-48px))]"
             footer={
               <Button variant="primary" onClick={() => setEditing(false)}>
@@ -340,6 +342,10 @@ function SelectionTray() {
               </Button>
             }
           >
+            <DownloadPresets page="browser" options={effective} outputDir={folder} onApply={(preset) => {
+              setOptions(preset.options);
+              setOutputDir(preset.outputDir);
+            }} />
             <DownloadOptionsForm options={effective} onChange={(patch) => setOptions({ ...effective, ...patch })} />
           </DialogContent>
         ) : null}

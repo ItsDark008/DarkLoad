@@ -3,6 +3,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { ArrowDownToLine, FolderOpen, Link2, ListVideo, Loader2, Search, Square } from "lucide-react";
 import { DownloadOptionsForm } from "@/components/DownloadOptionsForm";
+import { DownloadPresets } from "@/components/DownloadPresets";
 import { EmptyState, InlineAlert, PageHeader } from "@/components/common";
 import { FormatDetails, MediaCard, PlanSummary, PlaylistPicker } from "@/components/media";
 import { UrlField } from "@/components/UrlField";
@@ -340,7 +341,13 @@ export function DownloaderPage() {
           <Card className="p-5">
             <SectionTitle>Download options</SectionTitle>
             {options ? (
-              <DownloadOptionsForm options={options} onChange={patchOptions} summary={media?.summary ?? null} audioOnly={isSpotify} />
+              <>
+                <DownloadPresets page="downloader" options={options} outputDir={folder} platform={analysis?.platform} onApply={(preset) => {
+                  setOptions(preset.options);
+                  setOutputDir(preset.outputDir);
+                }} />
+                <DownloadOptionsForm options={options} onChange={patchOptions} summary={media?.summary ?? null} formats={media?.formats} audioOnly={isSpotify} />
+              </>
             ) : (
               <Skeleton className="h-40 w-full" />
             )}

@@ -1,4 +1,11 @@
-import type { AudioFormat, Container, DownloadOptions, ErrorCode, JobState, QualityMode, Settings } from "@/types/api";
+import type { AudioFormat, AudioTrackSelection, Container, DownloadOptions, ErrorCode, JobState, QualityMode, Settings } from "@/types/api";
+
+export const AUTOMATIC_AUDIO: AudioTrackSelection = { original: false, languages: [] };
+
+export function singleAudioTrack(tracks: AudioTrackSelection): AudioTrackSelection {
+  if (tracks.original) return { original: true, languages: [] };
+  return { original: false, languages: tracks.languages.slice(0, 1) };
+}
 
 export function optionsFromSettings(settings: Settings): DownloadOptions {
   return {
@@ -10,6 +17,7 @@ export function optionsFromSettings(settings: Settings): DownloadOptions {
     container: settings.defaultContainer,
     videoCodec: settings.videoCodec,
     audioCodec: settings.audioCodec,
+    audioTracks: AUTOMATIC_AUDIO,
     allowHdr: settings.allowHdr,
     audioFormat: settings.defaultAudioFormat,
     audioBitrate: settings.defaultAudioBitrate,
@@ -96,5 +104,7 @@ export function errorHint(code: ErrorCode): string | null {
 
 /** Spotify links only ever produce audio, whatever the current media type is. */
 export function optionsForPlatform(options: DownloadOptions, platform: string | undefined): DownloadOptions {
-  return platform === "spotify" && options.mediaType !== "audio" ? { ...options, mediaType: "audio" } : options;
+  return platform === "spotify" && options.mediaType !== "audio"
+    ? { ...options, mediaType: "audio", audioTracks: singleAudioTrack(options.audioTracks ?? AUTOMATIC_AUDIO) }
+    : options;
 }

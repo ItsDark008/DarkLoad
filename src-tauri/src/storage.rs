@@ -540,6 +540,18 @@ mod tests {
         assert!(s.load_settings().unwrap().is_none());
         let mut settings = Settings {
             max_concurrent_downloads: 6,
+            download_presets: vec![crate::settings::DownloadPreset {
+                name: "Italian archive".into(),
+                options: crate::formats::DownloadOptions {
+                    audio_tracks: crate::formats::AudioTrackSelection {
+                        original: true,
+                        languages: vec!["it".into()],
+                    },
+                    download_subtitles: true,
+                    ..Default::default()
+                },
+                output_dir: Some("downloads/archive".into()),
+            }],
             ..Settings::default()
         };
         s.save_settings(&settings).unwrap();

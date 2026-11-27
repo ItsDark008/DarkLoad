@@ -8,6 +8,7 @@ export type Page = "overview" | "downloader" | "batch" | "browser" | "queue" | "
 export const PAGE_ORDER: Page[] = ["overview", "downloader", "batch", "browser", "queue", "history", "settings", "about"];
 
 export type SettingsSection = "general" | "downloads" | "appearance" | "dependencies" | "updates" | "privacy";
+export type DownloadPresetPage = Extract<Page, "downloader" | "batch" | "browser">;
 
 interface AppStore {
   page: Page;
@@ -22,7 +23,9 @@ interface AppStore {
   info: AppInfo | null;
   settings: Settings | null;
   setSettings: (settings: Settings) => void;
-  updateSettings: (patch: Partial<Settings>) => Promise<boolean>;
+  updateSettings: (patch: Partial<Settings> | ((settings: Settings) => Partial<Settings>)) => Promise<boolean>;
+  selectedPresets: Partial<Record<DownloadPresetPage, string>>;
+  selectPreset: (page: DownloadPresetPage, value: string) => void;
 
   deps: DependencyStatus[];
   depsLoaded: boolean;
@@ -41,6 +44,8 @@ interface AppStore {
   bootstrap: () => Promise<void>;
 }
 
+let settingsWrite = Promise.resolve(true);
+
 export const useApp = create<AppStore>((set, get) => ({
   page: "overview",
   settingsSection: "general",
@@ -57,22 +62,25 @@ export const useApp = create<AppStore>((set, get) => ({
   info: null,
   settings: null,
   setSettings: (settings) => set({ settings }),
-  updateSettings: async (patch) => {
-    const current = get().settings;
-    if (!current) return false;
-    const next = { ...current, ...patch };
-    set({ settings: next });
-    try {
-      const saved = await api.settingsUpdate(next);
-      set({ settings: saved });
-      return true;
-    } catch (error) {
-      set({ settings: current });
-      const e = error as { message?: string };
-      toast.error("Setting not saved", { description: e.message });
-      return false;
-    }
+  updateSettings: (patch) => {
+    settingsWrite = settingsWrite.then(async () => {
+      const current = get().settings;
+      if (!current) return false;
+      try {
+        const next = { ...current, ...(typeof patch === "function" ? patch(current) : patch) };
+        const saved = await api.settingsUpdate(next);
+        set({ settings: saved });
+        return true;
+      } catch (error) {
+        const e = error as { message?: string };
+        toast.error("Setting not saved", { description: e.message });
+        return false;
+      }
+    });
+    return settingsWrite;
   },
+  selectedPresets: {},
+  selectPreset: (page, value) => set((s) => ({ selectedPresets: { ...s.selectedPresets, [page]: value } })),
 
   deps: [],
   depsLoaded: false,
