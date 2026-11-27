@@ -129,6 +129,14 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         log_file,
     };
     let _ = std::fs::create_dir_all(&paths.thumbnails_dir);
+    // The static scope in tauri.conf.json covers `$APPCACHE/thumbnails/*`. When Windows stores
+    // new files in a redirected folder, allow that folder too (non-recursively).
+    if let Some(stored) = thumbnails::redirected_dir(&paths.thumbnails_dir) {
+        tracing::info!("thumbnail cache is stored in {}", stored.display());
+        if let Err(e) = app.asset_protocol_scope().allow_directory(&stored, false) {
+            tracing::warn!("could not allow the redirected thumbnail folder: {e}");
+        }
+    }
     let queue = QueueManager::new(
         storage.clone(),
         deps.clone(),
