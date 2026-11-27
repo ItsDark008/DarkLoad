@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, Kbd, SectionTitle } from "@/components/ui/controls";
 import { modKey } from "@/lib/utils";
 import { useApp } from "@/stores/app";
+import { useT } from "@/i18n";
 
 /** Renders the subset of Markdown used by CHANGELOG.md (headings, bullets, links as text). */
 export function Changelog({ markdown }: { markdown: string }) {
@@ -39,22 +40,25 @@ export function Changelog({ markdown }: { markdown: string }) {
   return <div data-selectable>{blocks.map((b, i) => <Fragment key={i}>{b}</Fragment>)}</div>;
 }
 
-const SHORTCUTS: [string[], string][] = [
-  [[modKey, "1…8"], "Switch between pages"],
-  [[modKey, "L"], "Focus the link field"],
-  [[modKey, "Shift", "V"], "Paste a link and analyze it"],
-  [[modKey, "Enter"], "Start the download"],
-  [[modKey, "B"], "Collapse or expand the sidebar"],
-  [[modKey, ","], "Open settings"],
-  [["Alt", "↑ / ↓"], "Reorder the focused queue item"],
-  [["Delete"], "Cancel or remove the focused queue item"],
-  [["?"], "Show keyboard shortcuts"],
-];
+function shortcuts(t: (text: string) => string): [string[], string][] {
+  return [
+    [[modKey, "1…8"], t("Switch between pages")],
+    [[modKey, "L"], t("Focus the link field")],
+    [[modKey, "Shift", "V"], t("Paste a link and analyze it")],
+    [[modKey, "Enter"], t("Start the download")],
+    [[modKey, "B"], t("Collapse or expand the sidebar")],
+    [[modKey, ","], t("Open settings")],
+    [["Alt", "↑ / ↓"], t("Reorder the focused queue item")],
+    [[t("Delete")], t("Cancel or remove the focused queue item")],
+    [["?"], t("Show keyboard shortcuts")],
+  ];
+}
 
 export function ShortcutList() {
+  const t = useT();
   return (
     <ul className="divide-y divide-line">
-      {SHORTCUTS.map(([keys, label]) => (
+      {shortcuts(t).map(([keys, label]) => (
         <li key={label} className="flex items-center justify-between gap-4 py-2 text-[13px]">
           <span className="text-fg-2">{label}</span>
           <span className="flex gap-1">
@@ -68,19 +72,22 @@ export function ShortcutList() {
   );
 }
 
-const NOTICES = [
-  ["Tauri", "MIT / Apache-2.0", "Desktop application framework"],
-  ["React", "MIT", "User interface library"],
-  ["Radix UI & shadcn/ui patterns", "MIT", "Accessible interface primitives"],
-  ["Lucide", "ISC", "Icons"],
-  ["Inter", "SIL Open Font License 1.1", "Typeface"],
-  ["SQLite (via rusqlite)", "Public domain / MIT", "Local database"],
-  ["yt-dlp", "The Unlicense", "Media extraction (downloaded on request)"],
-  ["FFmpeg (yt-dlp/FFmpeg-Builds)", "GPL-3.0", "Media processing (downloaded on request)"],
-  ["Deno", "MIT", "JavaScript runtime used by yt-dlp (downloaded on request)"],
-];
+function notices(t: (text: string) => string): [string, string, string][] {
+  return [
+    ["Tauri", "MIT / Apache-2.0", t("Desktop application framework")],
+    ["React", "MIT", t("User interface library")],
+    [t("Radix UI & shadcn/ui patterns"), "MIT", t("Accessible interface primitives")],
+    ["Lucide", "ISC", t("Icons")],
+    ["Inter", "SIL Open Font License 1.1", t("Typeface")],
+    [t("SQLite (via rusqlite)"), t("Public domain / MIT"), t("Local database")],
+    ["yt-dlp", "The Unlicense", t("Media extraction (downloaded on request)")],
+    ["FFmpeg (yt-dlp/FFmpeg-Builds)", "GPL-3.0", t("Media processing (downloaded on request)")],
+    ["Deno", "MIT", t("JavaScript runtime used by yt-dlp (downloaded on request)")],
+  ];
+}
 
 export function AboutPage() {
+  const t = useT();
   const info = useApp((s) => s.info);
   return (
     <div className="mx-auto max-w-[880px] overflow-y-auto px-8 py-10" style={{ maxHeight: "100%" }}>
@@ -90,22 +97,22 @@ export function AboutPage() {
         </div>
         <div>
           <h1 className="text-[24px] font-semibold tracking-tight">DarkLoad</h1>
-          <p className="text-[14px] text-fg-2">One link. Maximum quality.</p>
+          <p className="text-[14px] text-fg-2">{t("One link. Maximum quality.")}</p>
           <p className="tabular mt-1 text-xs text-muted">
-            Version {info?.version} · Tauri {info?.tauriVersion} · {info?.os} {info?.arch}
+            {t("Version")} {info?.version} · Tauri {info?.tauriVersion} · {info?.os} {info?.arch}
           </p>
           <p className="mt-0.5 text-xs text-fg-2">
-            Created by <span className="font-medium text-fg">ItsDark008</span>
+            {t("Created by")} <span className="font-medium text-fg">ItsDark008</span>
           </p>
         </div>
       </div>
 
       <p className="mt-6 max-w-2xl text-[13px] leading-relaxed text-fg-2">
-        DarkLoad is a free, open-source desktop downloader for public YouTube, TikTok and Instagram media and Spotify songs. It inspects what each source actually offers and keeps the original streams whenever possible, without re-encoding or inventing quality that is not there.
+        {t("DarkLoad is a free, open-source desktop downloader for public YouTube, TikTok and Instagram media and Spotify songs. It inspects what each source actually offers and keeps the original streams whenever possible, without re-encoding or inventing quality that is not there.")}
       </p>
       {info?.repository ? (
         <Button className="mt-4" variant="secondary" onClick={() => void openUrl(`https://github.com/${info.repository}`)}>
-          <ExternalLink /> Source code
+          <ExternalLink /> {t("Source code")}
         </Button>
       ) : null}
 
@@ -113,17 +120,17 @@ export function AboutPage() {
         <Card className="p-5">
           <SectionTitle>
             <span className="flex items-center gap-2">
-              <Shield className="size-4 text-success" /> Responsible use
+              <Shield className="size-4 text-success" /> {t("Responsible use")}
             </span>
           </SectionTitle>
           <p className="text-[13px] leading-relaxed text-fg-2">
-            Download only content you own or are authorized to save. DarkLoad does not bypass DRM, paywalls, private content or other access controls, and it does not sign in to any platform.
+            {t("Download only content you own or are authorized to save. DarkLoad does not bypass DRM, paywalls, private content or other access controls, and it does not sign in to any platform.")}
           </p>
         </Card>
         <Card className="p-5">
           <SectionTitle>
             <span className="flex items-center gap-2">
-              <Keyboard className="size-4" /> Keyboard shortcuts
+              <Keyboard className="size-4" /> {t("Keyboard shortcuts")}
             </span>
           </SectionTitle>
           <ShortcutList />
@@ -133,31 +140,31 @@ export function AboutPage() {
       <Card className="mt-4 p-5">
         <SectionTitle>
           <span className="flex items-center gap-2">
-            <PlatformIcon platform="spotify" className="size-4" /> Spotify downloads
+            <PlatformIcon platform="spotify" className="size-4" /> {t("Spotify downloads")}
           </span>
         </SectionTitle>
         <div className="space-y-2 text-[13px] leading-relaxed text-fg-2">
           <p>
-            Spotify's audio is protected by DRM, so DarkLoad never downloads it. For a Spotify song it reads the title, artists, album, duration and cover from Spotify, finds the same recording on YouTube by title, artist and duration, downloads that audio and tags the file with Spotify's details. The queue shows which YouTube upload was used.
+            {t("Spotify's audio is protected by DRM, so DarkLoad never downloads it. For a Spotify song it reads the title, artists, album, duration and cover from Spotify, finds the same recording on YouTube by title, artist and duration, downloads that audio and tags the file with Spotify's details. The queue shows which YouTube upload was used.")}
           </p>
           <p className="flex gap-2">
             <Music className="mt-0.5 size-4 shrink-0 text-muted" />
-            <span>Quality is what YouTube offers, usually Opus or AAC around 130–160 kbps. Converting to FLAC, WAV or 320 kbps MP3 does not add detail.</span>
+            <span>{t("Quality is what YouTube offers, usually Opus or AAC around 130–160 kbps. Converting to FLAC, WAV or 320 kbps MP3 does not add detail.")}</span>
           </p>
-          <p>Without Spotify API credentials, albums and playlists are read from Spotify's public player, which lists at most 100 songs. Add your own credentials in Settings → Downloads to read longer playlists in full.</p>
+          <p>{t("Without Spotify API credentials, albums and playlists are read from Spotify's public player, which lists at most 100 songs. Add your own credentials in Settings → Downloads to read longer playlists in full.")}</p>
         </div>
       </Card>
 
       <Card className="mt-4 p-5">
         <SectionTitle>
           <span className="flex items-center gap-2">
-            <Scale className="size-4" /> Licenses
+            <Scale className="size-4" /> {t("Licenses")}
           </span>
         </SectionTitle>
-        <p className="mb-3 text-[13px] text-fg-2">DarkLoad is released under the MIT License. It builds on the following projects:</p>
+        <p className="mb-3 text-[13px] text-fg-2">{t("DarkLoad is released under the MIT License. It builds on the following projects:")}</p>
         <table className="w-full text-left text-[12px]">
           <tbody className="divide-y divide-line">
-            {NOTICES.map(([name, license, role]) => (
+            {notices(t).map(([name, license, role]) => (
               <tr key={name}>
                 <td className="py-1.5 pr-3 text-fg">{name}</td>
                 <td className="py-1.5 pr-3 text-fg-2">{license}</td>
@@ -166,11 +173,11 @@ export function AboutPage() {
             ))}
           </tbody>
         </table>
-        <p className="mt-3 text-xs text-muted">Complete notices are listed in THIRD_PARTY_NOTICES.md in the source repository and installation folder.</p>
+        <p className="mt-3 text-xs text-muted">{t("Complete notices are listed in THIRD_PARTY_NOTICES.md in the source repository and installation folder.")}</p>
       </Card>
 
       <Card className="mt-4 p-5">
-        <SectionTitle>Changelog</SectionTitle>
+        <SectionTitle>{t("Changelog")}</SectionTitle>
         {info ? <Changelog markdown={info.changelog} /> : null}
       </Card>
     </div>

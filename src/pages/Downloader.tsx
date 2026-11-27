@@ -19,16 +19,18 @@ import { modKey } from "@/lib/utils";
 import { api } from "@/services/api";
 import { missingRequiredDeps, useApp } from "@/stores/app";
 import { useDownloader } from "@/stores/downloader";
+import { t, tr, useT } from "@/i18n";
 import type { DownloadOptions, DownloadRequest, HistoryEntry, MediaInfo } from "@/types/api";
 
 export function OutputFolder({ value, onChange }: { value: string; onChange: (dir: string) => void }) {
+  useT();
   const choose = async () => {
-    const picked = await openDialog({ directory: true, multiple: false, defaultPath: value || undefined, title: "Choose download folder" });
+    const picked = await openDialog({ directory: true, multiple: false, defaultPath: value || undefined, title: t("Choose download folder") });
     if (typeof picked !== "string") return;
     try {
       onChange(await api.validateDirectory(picked));
     } catch (error) {
-      toast.error("Folder not usable", { description: (error as { message?: string }).message });
+      toast.error(t("Folder not usable"), { description: (error as { message?: string }).message });
     }
   };
   return (
@@ -36,10 +38,10 @@ export function OutputFolder({ value, onChange }: { value: string; onChange: (di
       <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-card px-3 text-[13px]" title={value}>
         <FolderOpen className="size-4 shrink-0 text-fg-2" />
         <span className="truncate text-fg" data-selectable>
-          {value || "No folder selected"}
+          {value || t("No folder selected")}
         </span>
       </div>
-      <Button onClick={() => void choose()}>Change</Button>
+      <Button onClick={() => void choose()}>{t("Change")}</Button>
     </div>
   );
 }
@@ -60,6 +62,7 @@ function requestFor(media: MediaInfo, options: DownloadOptions, outputDir: strin
 }
 
 export function DownloaderPage() {
+  useT();
   const settings = useApp((s) => s.settings);
   const deps = useApp((s) => s.deps);
   const depsLoaded = useApp((s) => s.depsLoaded);
@@ -114,12 +117,12 @@ export function DownloaderPage() {
       setSubmitting(true);
       try {
         const jobs = await api.enqueue(requests);
-        toast.success(jobs.length === 1 ? "Added to the queue" : `${jobs.length} downloads added to the queue`, {
+        toast.success(jobs.length === 1 ? t("Added to the queue") : t("{count} downloads added to the queue", { count: jobs.length }), {
           description: jobs.length === 1 ? jobs[0]?.title : undefined,
-          action: { label: "View queue", onClick: () => navigate("queue") },
+          action: { label: t("View queue"), onClick: () => navigate("queue") },
         });
       } catch (e) {
-        toast.error("Could not start the download", { description: (e as { message?: string }).message });
+        toast.error(t("Could not start the download"), { description: (e as { message?: string }).message });
       } finally {
         setSubmitting(false);
       }
@@ -182,7 +185,7 @@ export function DownloaderPage() {
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col px-8 py-7">
-      <PageHeader title="Downloader" description="Analyze a link to see exactly what the source offers, then download at the quality you choose." />
+      <PageHeader title={t("Downloader")} description={t("Analyze a link to see exactly what the source offers, then download at the quality you choose.")} />
 
       <UrlField
         ref={inputRef}
@@ -193,11 +196,11 @@ export function DownloaderPage() {
         action={
           status === "analyzing" ? (
             <Button variant="secondary" onClick={cancel}>
-              <Square className="size-3.5" /> Stop
+              <Square className="size-3.5" /> {t("Stop")}
             </Button>
           ) : (
             <Button type="submit" variant="primary" disabled={!url.trim() || ytdlpMissing}>
-              <Search /> Analyze
+              <Search /> {t("Analyze")}
             </Button>
           )
         }
@@ -207,14 +210,14 @@ export function DownloaderPage() {
         <InlineAlert
           className="mt-4"
           tone="warning"
-          title="Components required"
+          title={t("Components required")}
           action={
             <Button size="sm" variant="primary" onClick={() => navigate("settings", "dependencies")}>
-              Set up
+              {t("Set up")}
             </Button>
           }
         >
-          DarkLoad needs yt-dlp and FFmpeg to analyze and download media. They are installed from their official releases and verified.
+          {t("DarkLoad needs yt-dlp and FFmpeg to analyze and download media. They are installed from their official releases and verified.")}
         </InlineAlert>
       ) : null}
 
@@ -224,11 +227,11 @@ export function DownloaderPage() {
             <Card>
               <EmptyState
                 icon={Link2}
-                title="Paste a link to begin"
+                title={t("Paste a link to begin")}
                 description={
                   <>
-                    Supports YouTube videos, Shorts, playlists and archived livestreams, public TikTok videos, public Instagram reels and posts, and Spotify songs, albums and playlists. Press{" "}
-                    <Kbd>{modKey}</Kbd> <Kbd>Shift</Kbd> <Kbd>V</Kbd> to paste and analyze.
+                    {t("Supports YouTube videos, Shorts, playlists and archived livestreams, public TikTok videos, public Instagram reels and posts, and Spotify songs, albums and playlists. Press")}{" "}
+                    <Kbd>{modKey}</Kbd> <Kbd>Shift</Kbd> <Kbd>V</Kbd> {t("to paste and analyze.")}
                   </>
                 }
                 action={
@@ -259,7 +262,7 @@ export function DownloaderPage() {
               </div>
               <div className="mt-5 flex items-center gap-2 text-xs text-fg-2">
                 <Loader2 className="size-3.5 animate-spin" />{" "}
-                {detectPlatform(url) === "spotify" ? "Reading the song list from Spotify and finding the audio on YouTube…" : "Reading available formats from the source…"}
+                {detectPlatform(url) === "spotify" ? t("Reading the song list from Spotify and finding the audio on YouTube…") : t("Reading available formats from the source…")}
               </div>
             </Card>
           ) : null}
@@ -270,7 +273,7 @@ export function DownloaderPage() {
               title={error.message}
               action={
                 <Button size="sm" variant="secondary" onClick={() => void analyze()}>
-                  Try again
+                  {t("Try again")}
                 </Button>
               }
             >
@@ -285,7 +288,7 @@ export function DownloaderPage() {
                 {media.playlistId ? (
                   <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-line bg-elevated px-3 py-2 text-[13px]">
                     <span className="flex items-center gap-2 text-fg-2">
-                      <ListVideo className="size-4" /> This video is part of a playlist.
+                      <ListVideo className="size-4" /> {t("This video is part of a playlist.")}
                     </span>
                     <Button
                       size="sm"
@@ -296,13 +299,13 @@ export function DownloaderPage() {
                         void analyze(listUrl);
                       }}
                     >
-                      Open playlist
+                      {t("Open playlist")}
                     </Button>
                   </div>
                 ) : null}
               </Card>
               <Card className="p-5">
-                <SectionTitle>{isSpotify ? "Source formats on YouTube" : "Source formats"}</SectionTitle>
+                <SectionTitle>{isSpotify ? t("Source formats on YouTube") : t("Source formats")}</SectionTitle>
                 <FormatDetails media={media} />
               </Card>
             </>
@@ -314,7 +317,7 @@ export function DownloaderPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs text-fg-2">
                     <PlatformIcon platform={playlist.platform} className="size-3.5" />
-                    {playlist.platform === "instagram" ? "Post with multiple videos" : playlist.platform === "spotify" && playlist.url.includes("/album/") ? "Album" : "Playlist"} · {playlist.entries.length} {isSpotify ? "songs" : "items"}
+                    {playlist.platform === "instagram" ? t("Post with multiple videos") : playlist.platform === "spotify" && playlist.url.includes("/album/") ? t("Album") : t("Playlist")} · {isSpotify ? t("{count} songs", { count: playlist.entries.length }) : t("{count} items", { count: playlist.entries.length })}
                   </div>
                   <h2 className="mt-1 truncate text-[16px] font-semibold" data-selectable>
                     {playlist.title}
@@ -323,15 +326,15 @@ export function DownloaderPage() {
                 </div>
               </div>
               {playlist.notice ? (
-                <InlineAlert className="mb-4" tone="warning" title="Part of this list">
-                  {playlist.notice}
+                <InlineAlert className="mb-4" tone="warning" title={t("Part of this list")}>
+                  {tr(playlist.notice)}
                 </InlineAlert>
               ) : null}
               <PlaylistPicker playlist={playlist} selected={selected} onSelectedChange={setSelected} />
               <p className="mt-3 text-xs text-fg-2">
                 {isSpotify
-                  ? "Each selected song is matched on YouTube by title, artist and duration when its download starts. The chosen source is shown in the queue."
-                  : "Each selected item is analyzed when its download starts, so the chosen quality applies to the formats that item actually offers."}
+                  ? t("Each selected song is matched on YouTube by title, artist and duration when its download starts. The chosen source is shown in the queue.")
+                  : t("Each selected item is analyzed when its download starts, so the chosen quality applies to the formats that item actually offers.")}
               </p>
             </Card>
           ) : null}
@@ -339,7 +342,7 @@ export function DownloaderPage() {
 
         <aside className="min-w-0 space-y-4">
           <Card className="p-5">
-            <SectionTitle>Download options</SectionTitle>
+            <SectionTitle>{t("Download options")}</SectionTitle>
             {options ? (
               <>
                 <DownloadPresets page="downloader" options={options} outputDir={folder} platform={analysis?.platform} onApply={(preset) => {
@@ -354,7 +357,7 @@ export function DownloaderPage() {
           </Card>
           <Card className="space-y-4 p-5">
             <div>
-              <div className="mb-1.5 text-xs font-medium text-fg-2">Save to</div>
+              <div className="mb-1.5 text-xs font-medium text-fg-2">{t("Save to")}</div>
               <OutputFolder value={folder} onChange={setOutputDir} />
             </div>
             {media && plan && options ? <PlanSummary plan={plan} options={options} onChange={patchOptions} /> : null}
@@ -365,7 +368,7 @@ export function DownloaderPage() {
             ) : null}
             <Button variant="primary" size="lg" className="w-full" disabled={!canDownload} onClick={() => void download()}>
               {submitting ? <Loader2 className="animate-spin" /> : <ArrowDownToLine />}
-              {playlist ? `Download ${selected.size} ${selected.size === 1 ? "item" : "items"}` : "Download"}
+              {playlist ? (selected.size === 1 ? t("Download 1 item") : t("Download {count} items", { count: selected.size })) : t("Download")}
               <span className="ml-auto hidden text-xs font-normal opacity-70 xl:inline">{modKey}+Enter</span>
             </Button>
           </Card>
@@ -375,15 +378,15 @@ export function DownloaderPage() {
       <ConfirmDialog
         open={duplicate != null}
         onOpenChange={(o) => !o && setDuplicate(null)}
-        title="Already downloaded"
+        title={t("Already downloaded")}
         description={
           duplicate ? (
             <>
-              You downloaded this {formatRelative(duplicate.createdAt)} and the file still exists. Download it again? Your duplicate setting decides whether the new file is renamed, skipped or overwrites the old one.
+              {t("You downloaded this {when} and the file still exists. Download it again? Your duplicate setting decides whether the new file is renamed, skipped or overwrites the old one.", { when: formatRelative(duplicate.createdAt) })}
             </>
           ) : null
         }
-        confirmLabel="Download again"
+        confirmLabel={t("Download again")}
         onConfirm={() => {
           setDuplicate(null);
           if (media && options) void enqueue([requestFor(media, options, outputDir)]);

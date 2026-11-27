@@ -22,9 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Progress, Tooltip } from "@/components/ui/controls";
 import { ContextMenu, DropdownMenu, type MenuItem } from "@/components/ui/overlays";
 import { formatBytes, formatEta, formatPercent, formatSpeed } from "@/lib/format";
-import { errorHint, isFinished, isRunning } from "@/lib/options";
+import { errorHint, isFinished, isRunning, stateLabel } from "@/lib/options";
 import { cn } from "@/lib/utils";
 import { api } from "@/services/api";
+import { t, tr, useT } from "@/i18n";
 import type { Job } from "@/types/api";
 
 /** Spotify source details are information, not warnings. */
@@ -44,6 +45,7 @@ interface JobRowProps {
 }
 
 export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRowProps) {
+  useT();
   const running = isRunning(job.state);
   const finished = isFinished(job.state);
   const processing = job.state === "merging" || job.state === "converting";
@@ -53,39 +55,39 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
   const items: MenuItem[] = [
     ...(job.state === "completed"
       ? [
-          { label: "Open file", icon: <ExternalLink />, onSelect: () => run(api.queueOpen(job.id), "Could not open the file") },
-          { label: "Show in folder", icon: <FolderOpen />, onSelect: () => run(api.queueReveal(job.id), "Could not open the folder") },
+          { label: t("Open file"), icon: <ExternalLink />, onSelect: () => run(api.queueOpen(job.id), t("Could not open the file")) },
+          { label: t("Show in folder"), icon: <FolderOpen />, onSelect: () => run(api.queueReveal(job.id), t("Could not open the folder")) },
         ]
       : []),
     ...(running || job.state === "queued"
-      ? [{ label: "Pause", icon: <Pause />, onSelect: () => run(api.queuePause(job.id), "Could not pause") }]
+      ? [{ label: t("Pause"), icon: <Pause />, onSelect: () => run(api.queuePause(job.id), t("Could not pause")) }]
       : []),
-    ...(job.state === "pending" ? [{ label: "Resume", icon: <Play />, onSelect: () => run(api.queueResume(job.id), "Could not resume") }] : []),
+    ...(job.state === "pending" ? [{ label: t("Resume"), icon: <Play />, onSelect: () => run(api.queueResume(job.id), t("Could not resume")) }] : []),
     ...(job.state === "failed" || job.state === "cancelled"
-      ? [{ label: "Retry", icon: <RotateCcw />, onSelect: () => run(api.queueRetry(job.id), "Could not retry") }]
+      ? [{ label: t("Retry"), icon: <RotateCcw />, onSelect: () => run(api.queueRetry(job.id), t("Could not retry")) }]
       : []),
     {
-      label: "Copy source link",
+      label: t("Copy source link"),
       icon: <Copy />,
-      onSelect: () => run(writeText(job.request.url).then(() => toast.success("Link copied")), "Could not copy the link"),
+      onSelect: () => run(writeText(job.request.url).then(() => toast.success(t("Link copied"))), t("Could not copy the link")),
     },
     ...(!finished
       ? [
-          { label: "Move to top", icon: <ChevronsUp />, onSelect: () => run(api.queueMove(job.id, 0), "Could not reorder"), disabled: index === 0, separatorBefore: true },
-          { label: "Move up", icon: <ArrowUp />, onSelect: () => run(api.queueMove(job.id, index - 1), "Could not reorder"), disabled: index === 0 },
-          { label: "Move down", icon: <ArrowDown />, onSelect: () => run(api.queueMove(job.id, index + 1), "Could not reorder"), disabled: index >= count - 1 },
+          { label: t("Move to top"), icon: <ChevronsUp />, onSelect: () => run(api.queueMove(job.id, 0), t("Could not reorder")), disabled: index === 0, separatorBefore: true },
+          { label: t("Move up"), icon: <ArrowUp />, onSelect: () => run(api.queueMove(job.id, index - 1), t("Could not reorder")), disabled: index === 0 },
+          { label: t("Move down"), icon: <ArrowDown />, onSelect: () => run(api.queueMove(job.id, index + 1), t("Could not reorder")), disabled: index >= count - 1 },
         ]
       : []),
     ...(!finished
-      ? [{ label: "Cancel download", icon: <X />, danger: true, separatorBefore: true, onSelect: () => run(api.queueCancel(job.id), "Could not cancel") }]
-      : [{ label: "Remove from queue", icon: <Trash2 />, danger: true, separatorBefore: true, onSelect: () => run(api.queueRemove([job.id]), "Could not remove") }]),
+      ? [{ label: t("Cancel download"), icon: <X />, danger: true, separatorBefore: true, onSelect: () => run(api.queueCancel(job.id), t("Could not cancel")) }]
+      : [{ label: t("Remove from queue"), icon: <Trash2 />, danger: true, separatorBefore: true, onSelect: () => run(api.queueRemove([job.id]), t("Could not remove")) }]),
   ];
 
   const sizeText =
     job.state === "completed"
       ? formatBytes(job.fileSize)
       : p.totalBytes
-        ? `${formatBytes(p.downloadedBytes)} of ${formatBytes(p.totalBytes)}`
+        ? t("{done} of {total}", { done: formatBytes(p.downloadedBytes), total: formatBytes(p.totalBytes) })
         : p.downloadedBytes > 0
           ? formatBytes(p.downloadedBytes)
           : null;
@@ -98,12 +100,12 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
           compact ? "p-2.5" : "p-3",
         )}
         onKeyDown={(e) => {
-          if (e.altKey && e.key === "ArrowUp" && index > 0) run(api.queueMove(job.id, index - 1), "Could not reorder");
-          if (e.altKey && e.key === "ArrowDown" && index < count - 1) run(api.queueMove(job.id, index + 1), "Could not reorder");
-          if (e.key === "Delete") run(finished ? api.queueRemove([job.id]) : api.queueCancel(job.id), "Action failed");
+          if (e.altKey && e.key === "ArrowUp" && index > 0) run(api.queueMove(job.id, index - 1), t("Could not reorder"));
+          if (e.altKey && e.key === "ArrowDown" && index < count - 1) run(api.queueMove(job.id, index + 1), t("Could not reorder"));
+          if (e.key === "Delete") run(finished ? api.queueRemove([job.id]) : api.queueCancel(job.id), t("Action failed"));
         }}
         tabIndex={0}
-        aria-label={`${job.title}, ${job.state}`}
+        aria-label={`${job.title}, ${stateLabel(job.state)}`}
       >
         <Thumb local={job.thumbnailLocal} remote={job.thumbnail} audio={audio} className={compact ? "h-11 w-[78px] shrink-0" : "h-14 w-[100px] shrink-0"} />
         <div className="min-w-0 flex-1">
@@ -125,7 +127,7 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
                 <Progress
                   value={job.state === "queued" ? 0 : processing ? 1 : p.downloadFraction}
                   tone={processing ? "success" : "accent"}
-                  label="Download progress"
+                  label={t("Download progress")}
                 />
                 <span className="tabular w-12 shrink-0 text-right text-[11px] text-fg-2">
                   {job.state === "queued" ? "" : formatPercent(processing ? 1 : p.downloadFraction)}
@@ -133,24 +135,24 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
               </div>
               {processing ? (
                 <div className="flex items-center gap-3">
-                  <Progress value={p.processFraction} label={p.processLabel ?? "Processing"} />
+                  <Progress value={p.processFraction} label={tr(p.processLabel) ?? t("Processing")} />
                   <span className="tabular w-12 shrink-0 text-right text-[11px] text-fg-2">{formatPercent(p.processFraction)}</span>
                 </div>
               ) : null}
               <div className="tabular flex flex-wrap gap-x-3 text-[11px] text-fg-2">
-                {job.state === "queued" ? <span>Waiting for a free slot</span> : null}
-                {job.state === "analyzing" ? <span>Reading available formats…</span> : null}
+                {job.state === "queued" ? <span>{t("Waiting for a free slot")}</span> : null}
+                {job.state === "analyzing" ? <span>{t("Reading available formats…")}</span> : null}
                 {job.state === "downloading" && p.speed ? <span>{formatSpeed(p.speed)}</span> : null}
-                {job.state === "downloading" && p.eta != null ? <span>{formatEta(p.eta)} left</span> : null}
-                {processing ? <span>{p.processLabel ?? "Processing"}{p.processEta != null ? ` · ${formatEta(p.processEta)} left` : ""}</span> : null}
-                {p.retryLabel ? <span className="text-warning">{p.retryLabel}</span> : null}
+                {job.state === "downloading" && p.eta != null ? <span>{t("{time} left", { time: formatEta(p.eta) })}</span> : null}
+                {processing ? <span>{tr(p.processLabel) ?? t("Processing")}{p.processEta != null ? ` · ${t("{time} left", { time: formatEta(p.processEta) })}` : ""}</span> : null}
+                {p.retryLabel ? <span className="text-warning">{tr(p.retryLabel)}</span> : null}
               </div>
             </div>
           ) : null}
 
           {job.state === "failed" && job.error ? (
             <p className="mt-1.5 text-xs leading-relaxed text-danger" data-selectable>
-              {job.error.message}
+              {tr(job.error.message)}
               {errorHint(job.error.code) ? <span className="text-fg-2"> {errorHint(job.error.code)}</span> : null}
             </p>
           ) : null}
@@ -158,7 +160,7 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
             <ul className="mt-1.5 space-y-0.5 text-xs">
               {job.notes.map((note) => (
                 <li key={note} className={isInfoNote(note) ? "break-all text-fg-2" : "text-warning/90"} data-selectable>
-                  {note}
+                  {tr(note)}
                 </li>
               ))}
             </ul>
@@ -167,36 +169,36 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
 
         <div className="flex shrink-0 items-center gap-1">
           {running || job.state === "queued" ? (
-            <Tooltip content="Pause">
-              <Button size="icon-sm" variant="ghost" aria-label="Pause" onClick={() => run(api.queuePause(job.id), "Could not pause")}>
+            <Tooltip content={t("Pause")}>
+              <Button size="icon-sm" variant="ghost" aria-label={t("Pause")} onClick={() => run(api.queuePause(job.id), t("Could not pause"))}>
                 <Pause />
               </Button>
             </Tooltip>
           ) : null}
           {job.state === "pending" ? (
-            <Tooltip content="Resume">
-              <Button size="icon-sm" variant="ghost" aria-label="Resume" onClick={() => run(api.queueResume(job.id), "Could not resume")}>
+            <Tooltip content={t("Resume")}>
+              <Button size="icon-sm" variant="ghost" aria-label={t("Resume")} onClick={() => run(api.queueResume(job.id), t("Could not resume"))}>
                 <Play />
               </Button>
             </Tooltip>
           ) : null}
           {job.state === "failed" || job.state === "cancelled" ? (
-            <Tooltip content="Retry">
-              <Button size="icon-sm" variant="ghost" aria-label="Retry" onClick={() => run(api.queueRetry(job.id), "Could not retry")}>
+            <Tooltip content={t("Retry")}>
+              <Button size="icon-sm" variant="ghost" aria-label={t("Retry")} onClick={() => run(api.queueRetry(job.id), t("Could not retry"))}>
                 <RotateCcw />
               </Button>
             </Tooltip>
           ) : null}
           {job.state === "completed" ? (
-            <Tooltip content="Show in folder">
-              <Button size="icon-sm" variant="ghost" aria-label="Show in folder" onClick={() => run(api.queueReveal(job.id), "Could not open the folder")}>
+            <Tooltip content={t("Show in folder")}>
+              <Button size="icon-sm" variant="ghost" aria-label={t("Show in folder")} onClick={() => run(api.queueReveal(job.id), t("Could not open the folder"))}>
                 <FolderOpen />
               </Button>
             </Tooltip>
           ) : null}
           {!finished ? (
-            <Tooltip content="Cancel">
-              <Button size="icon-sm" variant="ghost" aria-label="Cancel download" onClick={() => run(api.queueCancel(job.id), "Could not cancel")}>
+            <Tooltip content={t("Cancel")}>
+              <Button size="icon-sm" variant="ghost" aria-label={t("Cancel download")} onClick={() => run(api.queueCancel(job.id), t("Could not cancel"))}>
                 <X />
               </Button>
             </Tooltip>
@@ -204,7 +206,7 @@ export const JobRow = memo(function JobRow({ job, index, count, compact }: JobRo
           <DropdownMenu
             items={items}
             trigger={
-              <Button size="icon-sm" variant="ghost" aria-label="More actions">
+              <Button size="icon-sm" variant="ghost" aria-label={t("More actions")}>
                 <MoreHorizontal />
               </Button>
             }

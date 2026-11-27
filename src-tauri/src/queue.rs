@@ -568,7 +568,7 @@ impl QueueManager {
                     job.file_size = *size;
                     job.progress.download_fraction = Some(1.0);
                     job.progress.process_fraction = job.progress.process_label.as_ref().map(|_| 1.0);
-                    notify = Some(("Download complete".into(), job.title.clone()));
+                    notify = Some((crate::i18n::download_complete(settings.language).into(), job.title.clone()));
                 }
                 Err(e) if e.code == ErrorCode::Cancelled && job.paused => {
                     job.state = JobState::Pending;
@@ -578,7 +578,7 @@ impl QueueManager {
                 Err(e) => {
                     job.state = JobState::Failed;
                     job.error = Some(JobError::from(e));
-                    notify = Some(("Download failed".into(), format!("{} — {}", job.title, e.message)));
+                    notify = Some((crate::i18n::download_failed(settings.language).into(), format!("{} — {}", job.title, e.message)));
                 }
             }
         });
@@ -1497,6 +1497,7 @@ mod tests {
         deps.refresh().await;
         let mut s = Settings {
             download_dir: out.to_string_lossy().into_owned(),
+            language: crate::settings::Language::En,
             ..Settings::default()
         };
         configure(&mut s);

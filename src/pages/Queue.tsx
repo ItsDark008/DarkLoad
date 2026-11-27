@@ -11,6 +11,7 @@ import { isFinished, isRunning } from "@/lib/options";
 import { api } from "@/services/api";
 import { useApp } from "@/stores/app";
 import { summarize, useQueue } from "@/stores/queue";
+import { t, tc, useT } from "@/i18n";
 import type { Job } from "@/types/api";
 
 type Filter = "all" | "active" | "completed" | "failed";
@@ -33,6 +34,7 @@ function report(action: Promise<unknown>, failure: string) {
 }
 
 export function QueuePage() {
+  useT();
   const jobs = useQueue((s) => s.jobs);
   const settings = useApp((s) => s.settings);
   const navigate = useApp((s) => s.navigate);
@@ -54,22 +56,22 @@ export function QueuePage() {
   return (
     <div className="mx-auto flex h-full max-w-[1180px] flex-col px-8 pt-7">
       <PageHeader
-        title="Download Queue"
-        description={`Up to ${settings?.maxConcurrentDownloads ?? "…"} downloads run at the same time. Reorder with Alt+↑/↓ or the item menu.`}
+        title={t("Download Queue")}
+        description={t("Up to {count} downloads run at the same time. Reorder with Alt+↑/↓ or the item menu.", { count: settings?.maxConcurrentDownloads ?? "…" })}
         actions={
           <>
             {anyRunning ? (
-              <Button onClick={() => report(api.queuePauseAll(), "Could not pause")}>
-                <Pause /> Pause all
+              <Button onClick={() => report(api.queuePauseAll(), t("Could not pause"))}>
+                <Pause /> {t("Pause all")}
               </Button>
             ) : null}
             {anyPaused ? (
-              <Button onClick={() => report(api.queueResumeAll(), "Could not resume")}>
-                <Play /> Resume all
+              <Button onClick={() => report(api.queueResumeAll(), t("Could not resume"))}>
+                <Play /> {t("Resume all")}
               </Button>
             ) : null}
-            <Button variant="ghost" disabled={finishedCount === 0} onClick={() => report(api.queueClearFinished(), "Could not clear")}>
-              <Trash2 /> Clear finished
+            <Button variant="ghost" disabled={finishedCount === 0} onClick={() => report(api.queueClearFinished(), t("Could not clear"))}>
+              <Trash2 /> {t("Clear finished")}
             </Button>
           </>
         }
@@ -79,17 +81,17 @@ export function QueuePage() {
         <Card className="mb-4 flex flex-wrap items-center gap-x-8 gap-y-3 p-4">
           <div className="min-w-[220px] flex-1">
             <div className="mb-2 flex items-center justify-between text-xs text-fg-2">
-              <span>Overall progress</span>
-              <span className="tabular text-fg">{summary.active > 0 ? formatPercent(summary.fraction) : "Idle"}</span>
+              <span>{t("Overall progress")}</span>
+              <span className="tabular text-fg">{summary.active > 0 ? formatPercent(summary.fraction) : t("Idle")}</span>
             </div>
-            <Progress value={summary.active > 0 ? summary.fraction : 0} label="Overall progress" />
+            <Progress value={summary.active > 0 ? summary.fraction : 0} label={t("Overall progress")} />
           </div>
           {[
-            ["Downloading", summary.running],
-            ["Queued", summary.queued],
-            ["Paused", summary.paused],
-            ["Completed", summary.completed],
-            ["Failed", summary.failed],
+            [t("Downloading"), summary.running],
+            [t("Queued"), summary.queued],
+            [t("Paused"), summary.paused],
+            [tc("count", "Completed"), summary.completed],
+            [tc("count", "Failed"), summary.failed],
           ].map(([label, value]) => (
             <div key={label as string} className="text-xs text-fg-2">
               {label}
@@ -97,7 +99,7 @@ export function QueuePage() {
             </div>
           ))}
           <div className="text-xs text-fg-2">
-            Speed
+            {t("Speed")}
             <div className="tabular mt-0.5 text-[15px] font-semibold text-fg">{summary.speed > 0 ? formatSpeed(summary.speed) : "—"}</div>
           </div>
         </Card>
@@ -105,16 +107,16 @@ export function QueuePage() {
 
       {jobs.length > 0 ? (
         <Segmented<Filter>
-          aria-label="Filter downloads"
+          aria-label={t("Filter downloads")}
           size="sm"
           value={filter}
           onValueChange={setFilter}
           className="mb-3 self-start"
           options={[
-            { value: "all", label: `All ${jobs.length}` },
-            { value: "active", label: "Active" },
-            { value: "completed", label: "Completed" },
-            { value: "failed", label: "Failed & cancelled" },
+            { value: "all", label: t("All {count}", { count: jobs.length }) },
+            { value: "active", label: t("Active") },
+            { value: "completed", label: tc("count", "Completed") },
+            { value: "failed", label: t("Failed & cancelled") },
           ]}
         />
       ) : null}
@@ -124,17 +126,17 @@ export function QueuePage() {
           <Card>
             <EmptyState
               icon={ListVideo}
-              title="The queue is empty"
-              description="Analyze a link in the Downloader or add many at once from Batch Download."
+              title={t("The queue is empty")}
+              description={t("Analyze a link in the Downloader or add many at once from Batch Download.")}
               action={
                 <Button variant="primary" onClick={() => navigate("downloader")}>
-                  Open Downloader
+                  {t("Open Downloader")}
                 </Button>
               }
             />
           </Card>
         ) : visible.length === 0 ? (
-          <p className="py-10 text-center text-[13px] text-fg-2">No downloads match this filter.</p>
+          <p className="py-10 text-center text-[13px] text-fg-2">{t("No downloads match this filter.")}</p>
         ) : (
           <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
             {virtualizer.getVirtualItems().map((row) => {

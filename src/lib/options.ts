@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import type { AudioFormat, AudioTrackSelection, Container, DownloadOptions, ErrorCode, JobState, QualityMode, Settings } from "@/types/api";
 
 export const AUTOMATIC_AUDIO: AudioTrackSelection = { original: false, languages: [] };
@@ -33,44 +34,61 @@ export function optionsFromSettings(settings: Settings): DownloadOptions {
   };
 }
 
-export const QUALITY_MODES: { value: QualityMode; label: string; description: string }[] = [
-  { value: "best", label: "Best available", description: "Highest resolution, frame rate and dynamic range the source offers." },
-  { value: "exact", label: "Exact resolution", description: "A specific resolution chosen from the formats the source offers." },
-  { value: "compatible", label: "Best compatible", description: "H.264 + AAC in MP4 for the widest device support." },
-  { value: "custom", label: "Custom format", description: "Enter a yt-dlp format expression such as 137+140." },
-];
+export function qualityModes(): { value: QualityMode; label: string; description: string }[] {
+  return [
+    { value: "best", label: t("Best available"), description: t("Highest resolution, frame rate and dynamic range the source offers.") },
+    { value: "exact", label: t("Exact resolution"), description: t("A specific resolution chosen from the formats the source offers.") },
+    { value: "compatible", label: t("Best compatible"), description: t("H.264 + AAC in MP4 for the widest device support.") },
+    { value: "custom", label: t("Custom format"), description: t("Enter a yt-dlp format expression such as 137+140.") },
+  ];
+}
 
-export const CONTAINERS: { value: Container; label: string; description: string }[] = [
-  { value: "auto", label: "Auto", description: "Keep the streams in their natural container." },
-  { value: "mp4", label: "MP4", description: "Broad compatibility." },
-  { value: "mkv", label: "MKV", description: "Holds any codec combination." },
-  { value: "webm", label: "WebM", description: "VP9/AV1 with Opus only." },
-];
+export function containers(): { value: Container; label: string; description: string }[] {
+  return [
+    { value: "auto", label: t("Auto"), description: t("Keep the streams in their natural container.") },
+    { value: "mp4", label: "MP4", description: t("Broad compatibility.") },
+    { value: "mkv", label: "MKV", description: t("Holds any codec combination.") },
+    { value: "webm", label: "WebM", description: t("VP9/AV1 with Opus only.") },
+  ];
+}
 
-export const AUDIO_FORMATS: { value: AudioFormat; label: string; lossless?: boolean }[] = [
-  { value: "original", label: "Original" },
-  { value: "mp3", label: "MP3" },
-  { value: "m4a", label: "M4A" },
-  { value: "aac", label: "AAC" },
-  { value: "opus", label: "Opus" },
-  { value: "ogg", label: "OGG Vorbis" },
-  { value: "flac", label: "FLAC", lossless: true },
-  { value: "wav", label: "WAV", lossless: true },
-];
+export function audioFormats(): { value: AudioFormat; label: string; lossless?: boolean }[] {
+  return [
+    { value: "original", label: t("Original") },
+    { value: "mp3", label: "MP3" },
+    { value: "m4a", label: "M4A" },
+    { value: "aac", label: "AAC" },
+    { value: "opus", label: "Opus" },
+    { value: "ogg", label: "OGG Vorbis" },
+    { value: "flac", label: "FLAC", lossless: true },
+    { value: "wav", label: "WAV", lossless: true },
+  ];
+}
 
 export const AUDIO_BITRATES = [320, 256, 192, 128, 96] as const;
 
-export const STATE_LABELS: Record<JobState, string> = {
-  pending: "Paused",
-  analyzing: "Analyzing",
-  queued: "Queued",
-  downloading: "Downloading",
-  merging: "Merging",
-  converting: "Converting",
-  completed: "Completed",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
+export function stateLabel(state: JobState): string {
+  switch (state) {
+    case "pending":
+      return t("Paused");
+    case "analyzing":
+      return t("Analyzing");
+    case "queued":
+      return t("Queued");
+    case "downloading":
+      return t("Downloading");
+    case "merging":
+      return t("Merging");
+    case "converting":
+      return t("Converting");
+    case "completed":
+      return t("Completed");
+    case "failed":
+      return t("Failed");
+    case "cancelled":
+      return t("Cancelled");
+  }
+}
 
 export function isRunning(state: JobState): boolean {
   return state === "analyzing" || state === "downloading" || state === "merging" || state === "converting";
@@ -85,18 +103,18 @@ export function errorHint(code: ErrorCode): string | null {
   switch (code) {
     case "dependency_missing":
     case "dependency_failed":
-      return "Open Settings → Dependencies to install or repair components.";
+      return t("Open Settings → Dependencies to install or repair components.");
     case "network":
-      return "Check your internet connection, then retry.";
+      return t("Check your internet connection, then retry.");
     case "rate_limited":
-      return "Wait a few minutes before retrying.";
+      return t("Wait a few minutes before retrying.");
     case "disk_full":
-      return "Free up disk space or choose another download folder.";
+      return t("Free up disk space or choose another download folder.");
     case "permission_denied":
     case "invalid_path":
-      return "Choose a download folder you can write to.";
+      return t("Choose a download folder you can write to.");
     case "format_unavailable":
-      return "Analyze the link again and pick another quality.";
+      return t("Analyze the link again and pick another quality.");
     default:
       return null;
   }

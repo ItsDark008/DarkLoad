@@ -17,24 +17,26 @@ import { OverviewPage } from "@/pages/Overview";
 import { QueuePage } from "@/pages/Queue";
 import { SettingsPage } from "@/pages/Settings";
 import { useApp } from "@/stores/app";
+import { useT } from "@/i18n";
 import type { AppError } from "@/types/api";
 
 function Splash({ error, onRetry }: { error: AppError | null; onRetry: () => void }) {
+  const t = useT();
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 bg-bg">
       <LogoMark className="size-12 text-fg" />
       {error ? (
         <div className="max-w-sm text-center">
-          <p className="text-[14px] font-medium">DarkLoad could not start</p>
+          <p className="text-[14px] font-medium">{t("DarkLoad could not start")}</p>
           <p className="mt-1 text-[13px] text-fg-2" data-selectable>
             {error.message}
           </p>
           <Button className="mt-4" variant="primary" onClick={onRetry}>
-            Try again
+            {t("Try again")}
           </Button>
         </div>
       ) : (
-        <Loader2 className="size-5 animate-spin text-fg-2" aria-label="Loading" />
+        <Loader2 className="size-5 animate-spin text-fg-2" aria-label={t("Loading")} />
       )}
     </div>
   );
@@ -49,6 +51,7 @@ export function App() {
   const [error, setError] = useState<AppError | null>(null);
   const [closeAsk, setCloseAsk] = useState(false);
   const resolver = useRef<((v: boolean) => void) | null>(null);
+  const t = useT();
 
   useEffect(() => {
     bootstrap().catch((e: AppError) => setError(e));
@@ -86,7 +89,7 @@ export function App() {
         </ErrorBoundary>
       </AppLayout>
       <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
-        <DialogContent title="Keyboard shortcuts">
+        <DialogContent title={t("Keyboard shortcuts")}>
           <ShortcutList />
         </DialogContent>
       </Dialog>
@@ -99,9 +102,9 @@ export function App() {
             resolver.current = null;
           }
         }}
-        title="Quit while downloading?"
-        description="Active downloads will stop. If “Resume the queue on startup” is on, they continue the next time you open DarkLoad."
-        confirmLabel="Quit"
+        title={t("Quit while downloading?")}
+        description={t("Active downloads will stop. If “Resume the queue on startup” is on, they continue the next time you open DarkLoad.")}
+        confirmLabel={t("Quit")}
         destructive
         onConfirm={() => {
           resolver.current?.(true);

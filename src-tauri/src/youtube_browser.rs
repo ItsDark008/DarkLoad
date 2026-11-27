@@ -26,6 +26,7 @@ const MAIN: &str = "main";
 const HOME: &str = "https://www.youtube.com/";
 const SCRIPT: &str = include_str!("youtube_browser.js");
 const REPORT_PLACEHOLDER: &str = "DARKLOAD_BROWSER_REPORT_URL";
+const TEXT_PLACEHOLDER: &str = "DARKLOAD_BROWSER_TEXT";
 pub const MAX_SELECTION: usize = 500;
 const MAX_REPORT_BYTES: usize = 256 * 1024;
 const MAX_MESSAGES: usize = 64;
@@ -283,7 +284,20 @@ impl YoutubeBrowser {
 
     fn builder(&self) -> WebviewBuilder<tauri::Wry> {
         let home = Url::parse(HOME).expect("static URL");
-        let script = SCRIPT.replace(REPORT_PLACEHOLDER, &self.report_url);
+        let language = self
+            .app
+            .try_state::<crate::commands::AppState>()
+            .map(|state| {
+                state
+                    .settings
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .language
+            })
+            .unwrap_or(crate::settings::Language::System);
+        let script = SCRIPT
+            .replace(REPORT_PLACEHOLDER, &self.report_url)
+            .replace(TEXT_PLACEHOLDER, &crate::i18n::browser_text(language));
         let report_url = self.report_url.clone();
         let nav_app = self.app.clone();
         let window_app = self.app.clone();

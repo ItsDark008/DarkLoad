@@ -15,6 +15,7 @@ import { api } from "@/services/api";
 import { depsHealth, useApp } from "@/stores/app";
 import { useHistorySignal } from "@/stores/signals";
 import { summarize, useQueue } from "@/stores/queue";
+import { tc, useT } from "@/i18n";
 import type { HistoryStats, JobState, Platform } from "@/types/api";
 
 function Stat({ label, value, icon: Icon, tone, hint }: { label: string; value: string; icon: LucideIcon; tone?: string; hint?: string }) {
@@ -30,14 +31,21 @@ function Stat({ label, value, icon: Icon, tone, hint }: { label: string; value: 
   );
 }
 
-const PLATFORM_CONTENT: Record<Platform, string> = {
-  youtube: "Videos, Shorts, playlists, archived streams",
-  tiktok: "Public videos and short links",
-  instagram: "Public reels, posts and carousels",
-  spotify: "Songs, albums and playlists, matched on YouTube",
-};
+function platformContent(platform: Platform, t: (text: string) => string): string {
+  switch (platform) {
+    case "youtube":
+      return t("Videos, Shorts, playlists, archived streams");
+    case "tiktok":
+      return t("Public videos and short links");
+    case "instagram":
+      return t("Public reels, posts and carousels");
+    case "spotify":
+      return t("Songs, albums and playlists, matched on YouTube");
+  }
+}
 
 export function OverviewPage() {
+  const t = useT();
   const openInDownloader = useApp((s) => s.openInDownloader);
   const navigate = useApp((s) => s.navigate);
   const deps = useApp((s) => s.deps);
@@ -68,40 +76,40 @@ export function OverviewPage() {
 
   return (
     <div className="mx-auto max-w-[1180px] px-8 py-7">
-      <PageHeader title="Overview" description="Your downloads at a glance." />
+      <PageHeader title={t("Overview")} description={t("Your downloads at a glance.")} />
 
-      <UrlField value={url} onChange={setUrl} onSubmit={(u) => openInDownloader(u)} action={<Button type="submit" variant="primary" disabled={!url.trim()}><Search /> Analyze</Button>} />
+      <UrlField value={url} onChange={setUrl} onSubmit={(u) => openInDownloader(u)} action={<Button type="submit" variant="primary" disabled={!url.trim()}><Search /> {t("Analyze")}</Button>} />
 
       <div className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat label="Active downloads" value={formatCount(queue.active)} icon={ArrowDownToLine} tone={queue.active ? "text-accent-hover" : undefined} hint={queue.paused ? `${queue.paused} paused` : undefined} />
-        <Stat label="Completed" value={stats ? formatCount(stats.completed) : "—"} icon={CheckCircle2} tone="text-success" />
-        <Stat label="Failed" value={stats ? formatCount(stats.failed) : "—"} icon={XCircle} tone={stats?.failed ? "text-danger" : undefined} />
-        <Stat label="Total downloaded" value={stats ? formatBytes(stats.totalBytes) : "—"} icon={HardDrive} />
+        <Stat label={t("Active downloads")} value={formatCount(queue.active)} icon={ArrowDownToLine} tone={queue.active ? "text-accent-hover" : undefined} hint={queue.paused ? t("{count} paused", { count: queue.paused }) : undefined} />
+        <Stat label={tc("count", "Completed")} value={stats ? formatCount(stats.completed) : "—"} icon={CheckCircle2} tone="text-success" />
+        <Stat label={tc("count", "Failed")} value={stats ? formatCount(stats.failed) : "—"} icon={XCircle} tone={stats?.failed ? "text-danger" : undefined} />
+        <Stat label={t("Total downloaded")} value={stats ? formatBytes(stats.totalBytes) : "—"} icon={HardDrive} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <section>
-            <SectionTitle action={activeJobs.length > 0 ? <Button size="sm" variant="ghost" onClick={() => navigate("queue")}>View queue</Button> : null}>
-              Active downloads
+            <SectionTitle action={activeJobs.length > 0 ? <Button size="sm" variant="ghost" onClick={() => navigate("queue")}>{t("View queue")}</Button> : null}>
+              {t("Active downloads")}
             </SectionTitle>
             {activeJobs.length > 0 ? (
               <div className="space-y-2">
                 {activeJobs.slice(0, 4).map((job) => (
                   <JobRow key={job.id} job={job} index={jobs.indexOf(job)} count={jobs.length} compact />
                 ))}
-                {activeJobs.length > 4 ? <p className="text-xs text-fg-2">and {activeJobs.length - 4} more in the queue</p> : null}
+                {activeJobs.length > 4 ? <p className="text-xs text-fg-2">{t("and {count} more in the queue", { count: activeJobs.length - 4 })}</p> : null}
               </div>
             ) : (
               <Card>
-                <EmptyState icon={ListVideo} title="Nothing downloading" description="Downloads you start appear here with live progress." />
+                <EmptyState icon={ListVideo} title={t("Nothing downloading")} description={t("Downloads you start appear here with live progress.")} />
               </Card>
             )}
           </section>
 
           <section>
-            <SectionTitle action={stats && stats.recent.length > 0 ? <Button size="sm" variant="ghost" onClick={() => navigate("history")}>Open history</Button> : null}>
-              Recent activity
+            <SectionTitle action={stats && stats.recent.length > 0 ? <Button size="sm" variant="ghost" onClick={() => navigate("history")}>{t("Open history")}</Button> : null}>
+              {t("Recent activity")}
             </SectionTitle>
             {!stats ? (
               <Card className="space-y-3 p-4">
@@ -110,7 +118,7 @@ export function OverviewPage() {
               </Card>
             ) : stats.recent.length === 0 ? (
               <Card>
-                <EmptyState icon={HistoryIcon} title="No downloads yet" description="Finished, failed and cancelled downloads are recorded here on this device only." />
+                <EmptyState icon={HistoryIcon} title={t("No downloads yet")} description={t("Finished, failed and cancelled downloads are recorded here on this device only.")} />
               </Card>
             ) : (
               <Card className="divide-y divide-line">
@@ -121,7 +129,7 @@ export function OverviewPage() {
                       <div className="truncate text-[13px] text-fg">{entry.title}</div>
                       <div className="flex items-center gap-1.5 text-xs text-fg-2">
                         <PlatformIcon platform={entry.platform} className="size-3" />
-                        {entry.quality ?? entry.format ?? entry.mediaType}
+                        {entry.quality ?? entry.format ?? (entry.mediaType === "audio" ? t("Audio") : t("Video"))}
                       </div>
                     </div>
                     <StatusBadge state={entry.status as JobState} />
@@ -135,7 +143,7 @@ export function OverviewPage() {
 
         <div className="space-y-6">
           <section>
-            <SectionTitle>Supported platforms</SectionTitle>
+            <SectionTitle>{t("Supported platforms")}</SectionTitle>
             <div className="space-y-2">
               {(["youtube", "tiktok", "instagram", "spotify"] as Platform[]).map((p) => (
                 <button
@@ -147,16 +155,16 @@ export function OverviewPage() {
                   <PlatformIcon platform={p} className="size-5 text-fg" />
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium">{PLATFORM_NAMES[p]}</div>
-                    <div className="truncate text-xs text-fg-2">{PLATFORM_CONTENT[p]}</div>
+                    <div className="truncate text-xs text-fg-2">{platformContent(p, t)}</div>
                   </div>
-                  <span className="tabular text-xs text-fg-2">{stats ? `${formatCount(countFor(p))} saved` : ""}</span>
+                  <span className="tabular text-xs text-fg-2">{stats ? t("{count} saved", { count: formatCount(countFor(p)) }) : ""}</span>
                 </button>
               ))}
             </div>
           </section>
 
           <section>
-            <SectionTitle action={<Button size="sm" variant="ghost" onClick={() => navigate("settings", "dependencies")}>Manage</Button>}>Components</SectionTitle>
+            <SectionTitle action={<Button size="sm" variant="ghost" onClick={() => navigate("settings", "dependencies")}>{t("Manage")}</Button>}>{t("Components")}</SectionTitle>
             <Card className="divide-y divide-line">
               {!depsLoaded ? (
                 <div className="space-y-2 p-4">
@@ -168,14 +176,14 @@ export function OverviewPage() {
                   <div key={d.id} className="flex items-center gap-3 px-4 py-2.5">
                     <span className={cn("size-2 rounded-full", d.available ? "bg-success" : d.required ? "bg-danger" : "bg-warning")} aria-hidden />
                     <span className="flex-1 text-[13px]">{d.name}</span>
-                    <span className="max-w-[150px] truncate font-mono text-[11px] text-fg-2">{d.available ? d.version : d.required ? "Missing" : "Optional"}</span>
+                    <span className="max-w-[150px] truncate font-mono text-[11px] text-fg-2">{d.available ? d.version : d.required ? t("Missing") : t("Optional")}</span>
                   </div>
                 ))
               )}
               {health === "error" || (health === "warning" && missing.length > 0) ? (
                 <div className="p-3">
                   <Button variant="primary" className="w-full" disabled={installing} onClick={() => void installDeps(missing.length ? missing : ["yt-dlp", "ffmpeg", "deno"])}>
-                    {installing ? "Installing…" : "Install missing components"}
+                    {installing ? t("Installing…") : t("Install missing components")}
                   </Button>
                 </div>
               ) : null}

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
+import { t } from "@/i18n";
 import { readClipboardUrl } from "@/lib/clipboard";
 import { api, events } from "@/services/api";
 import { PAGE_ORDER, useApp } from "@/stores/app";
@@ -97,10 +98,10 @@ export function useClipboardWatcher(enabled: boolean) {
           const key = urlKey(url);
           if (seen.current.has(key)) return;
           seen.current.add(key);
-          toast("Link detected in clipboard", {
+          toast(t("Link detected in clipboard"), {
             description: url,
             duration: 10_000,
-            action: { label: "Analyze", onClick: () => useApp.getState().openInDownloader(url) },
+            action: { label: t("Analyze"), onClick: () => useApp.getState().openInDownloader(url) },
           });
         });
       })
@@ -134,7 +135,7 @@ export function useCloseGuard(confirmEnabled: boolean, ask: () => Promise<boolea
 /** One automatic update check per launch, when enabled. */
 /** Restarts DarkLoad into the downloaded update, reporting failures. */
 export function installUpdateNow() {
-  void api.installAppUpdate().catch((e: { message?: string }) => toast.error("Update failed", { description: e.message }));
+  void api.installAppUpdate().catch((e: { message?: string }) => toast.error(t("Update failed"), { description: e.message }));
 }
 
 /**
@@ -153,14 +154,14 @@ export function useUpdateNotifications(configured: boolean | undefined) {
       const view = () => useApp.getState().navigate("settings", "updates");
       if (u.ready) {
         announced.current = key;
-        toast(`DarkLoad ${u.version} is ready`, {
-          description: "It installs when you close DarkLoad, or restart now.",
+        toast(t("DarkLoad {version} is ready", { version: u.version }), {
+          description: t("It installs when you close DarkLoad, or restart now."),
           duration: 15000,
-          action: { label: "Restart now", onClick: installUpdateNow },
+          action: { label: t("Restart now"), onClick: installUpdateNow },
         });
       } else if (useApp.getState().settings?.updateMode !== "auto" || !u.installable) {
         announced.current = key;
-        toast(`DarkLoad ${u.version} is available`, { action: { label: "View", onClick: view } });
+        toast(t("DarkLoad {version} is available", { version: u.version }), { action: { label: t("View"), onClick: view } });
       }
     };
     const unlisten = listen<UpdateInfo>(events.updaterStatus, (e) => show(e.payload));

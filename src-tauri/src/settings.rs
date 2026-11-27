@@ -47,6 +47,26 @@ pub enum PlaylistBehavior {
     All,
 }
 
+/// Interface language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    /// Follow the operating system language.
+    System,
+    En,
+    It,
+}
+
+impl Language {
+    /// The concrete language to use, resolving `System` from the operating system.
+    pub fn resolve(self) -> Language {
+        match self {
+            Language::System => crate::i18n::system_language(),
+            other => other,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
@@ -84,6 +104,7 @@ pub struct Settings {
     pub filename_template: String,
     pub native_window_frame: bool,
     pub confirm_exit_with_active_downloads: bool,
+    pub language: Language,
 
     // Downloads
     pub max_concurrent_downloads: u8,
@@ -153,6 +174,7 @@ impl Default for Settings {
             filename_template: DEFAULT_TEMPLATE.to_string(),
             native_window_frame: false,
             confirm_exit_with_active_downloads: true,
+            language: Language::System,
             max_concurrent_downloads: 3,
             speed_limit_kib: None,
             retry_attempts: 3,
@@ -379,6 +401,15 @@ mod tests {
             serde_json::from_str(r#"{"maxConcurrentDownloads":5,"unknownField":true}"#).unwrap();
         assert_eq!(parsed.max_concurrent_downloads, 5);
         assert_eq!(parsed.filename_template, DEFAULT_TEMPLATE);
+        assert_eq!(parsed.language, Language::System);
+    }
+
+    #[test]
+    fn language_round_trips_as_lowercase() {
+        let parsed: Settings = serde_json::from_str(r#"{"language":"it"}"#).unwrap();
+        assert_eq!(parsed.language, Language::It);
+        assert_eq!(Language::It.resolve(), Language::It);
+        assert!(serde_json::from_str::<Settings>(r#"{"language":"xx"}"#).is_err());
     }
 
     #[test]

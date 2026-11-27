@@ -7,6 +7,8 @@
   if (host !== "youtube.com" && !host.endsWith(".youtube.com")) return;
 
   const REPORT = "DARKLOAD_BROWSER_REPORT_URL";
+  // Interface text in the language DarkLoad uses, filled in by the backend.
+  const TEXT = DARKLOAD_BROWSER_TEXT;
   const ID = /^[A-Za-z0-9_-]{11}$/;
   const MAX_SELECTION = 500;
   const CARD = [
@@ -146,7 +148,7 @@
       const on = id != null && selected.has(id);
       button.hidden = id == null;
       button.setAttribute("aria-pressed", String(on));
-      button.title = on ? "Remove from DarkLoad selection" : "Select for DarkLoad";
+      button.title = on ? TEXT.deselect : TEXT.select;
       anchor?.classList.toggle("dl-on", on);
     }
     const current = videoId(location.href);
@@ -154,7 +156,7 @@
       pill.hidden = current == null;
       const on = current != null && selected.has(current);
       pill.setAttribute("aria-pressed", String(on));
-      pill.lastChild.textContent = on ? "Selected in DarkLoad" : "Select for DarkLoad";
+      pill.lastChild.textContent = on ? TEXT.selected : TEXT.select;
     }
   };
 
